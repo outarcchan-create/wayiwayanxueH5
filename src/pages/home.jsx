@@ -241,6 +241,7 @@ export default function HomePage(props) {
                 {/* 活动封面图 */}
                 <div className="relative h-48 overflow-hidden">
                   <img src={activity.coverImg} alt={activity.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                   <div className="absolute top-3 right-3 bg-yellow-400 text-blue-900 px-3 py-1 rounded-full text-xs font-bold">
                     {activity.difficulty}
                   </div>
