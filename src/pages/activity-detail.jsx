@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Trophy, Target, Share2, Heart, MessageCircle, BookOpen, Camera, HelpCircle, Navigation } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Trophy, Target, CheckCircle, Share2, Heart, MessageCircle, Camera, HelpCircle, Navigation } from 'lucide-react';
 
 import { TabBar } from '@/components/TabBar';
 export default function ActivityDetailPage(props) {
@@ -15,23 +15,23 @@ export default function ActivityDetailPage(props) {
   const [activity, setActivity] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [commentCount, setCommentCount] = useState(0);
+  const [registering, setRegistering] = useState(false);
+  const [userActivityRecord, setUserActivityRecord] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const {
     toast
   } = useToast();
   const activityId = props.$w.page.dataset.params.activityId;
   useEffect(() => {
     if (activityId) {
-      loadActivityDetail();
+      loadActivityData();
     }
   }, [activityId]);
-  const loadActivityDetail = async () => {
+  const loadActivityData = async () => {
     try {
       setLoading(true);
       const userId = $w.auth.currentUser?.userId;
+
       // 获取活动详情
       const activityResult = await $w.cloud.callFunction({
         name: 'callDataSource',
@@ -45,6 +45,7 @@ export default function ActivityDetailPage(props) {
           }
         }
       });
+
       // 获取任务列表
       const taskResult = await $w.cloud.callFunction({
         name: 'callDataSource',
@@ -61,18 +62,11 @@ export default function ActivityDetailPage(props) {
           }
         }
       });
-      if (activityResult.success && activityResult.data) {
-        setActivity(activityResult.data);
-        // 模拟社交数据
-        setLikeCount(Math.floor(Math.random() * 100) + 50);
-        setCommentCount(Math.floor(Math.random() * 30) + 10);
-      }
-      if (taskResult.success && taskResult.data) {
-        setTasks(taskResult.data);
-      }
-      // 检查用户是否已报名
+
+      // 获取用户活动记录
+      let userActivityResult = null;
       if (userId) {
-        const userActivityResult = await $w.cloud.callFunction({
+        userActivityResult = await $w.cloud.callFunction({
           name: 'callDataSource',
           data: {
             dataSourceName: 'wywh5_user_activity',
@@ -85,17 +79,24 @@ export default function ActivityDetailPage(props) {
             }
           }
         });
-        if (userActivityResult.success && userActivityResult.data) {
-          setIsRegistered(true);
-        }
       }
+      if (activityResult.success && activityResult.data) {
+        setActivity(activityResult.data);
+      }
+      if (taskResult.success && taskResult.data) {
+        setTasks(taskResult.data);
+      }
+      if (userActivityResult && userActivityResult.success && userActivityResult.data) {
+        setUserActivityRecord(userActivityResult.data);
+      }
+
       // 如果没有数据，使用模拟数据
-      if (!activityResult.success || !taskResult.success) {
+      if (!activityResult.success) {
         setActivity({
           activity_id: activityId,
           name: '青铜器探秘之旅',
-          desc: '深入了解中国古代青铜器的历史文化和制作工艺，通过互动任务探索博物馆的珍贵藏品。在这个活动中，您将学习青铜器的发展历程、制作工艺、文化意义，并通过答题、拍照、定位等多种方式完成任务，获得积分奖励。',
-          cover_img: 'https://picsum.photos/seed/bronze-activity/800/400.jpg',
+          desc: '深入了解中国古代青铜器的历史文化和制作工艺，通过互动任务探索博物馆的珍贵藏品。本次活动将带您穿越时空，感受青铜文明的魅力。',
+          cover_img: 'https://picsum.photos/seed/bronze-detail/400/300.jpg',
           activity_map_img: 'https://picsum.photos/seed/museum-map/800/600.jpg',
           difficulty: 'medium',
           duration: '90分钟',
@@ -103,13 +104,11 @@ export default function ActivityDetailPage(props) {
           rating: 4.8,
           tags: ['历史', '文化', '青铜器'],
           status: 'active',
-          start_time: '2024-01-20T09:00:00Z',
-          end_time: '2024-01-20T18:00:00Z',
-          max_participants: 200,
-          requirements: ['对历史文化感兴趣', '具备基本的手机操作能力', '能够独立完成户外活动'],
-          rewards: ['积分奖励', '成就徽章', '知识证书', '纪念品'],
+          created_time: '2024-01-10T08:00:00Z',
           organizer: '博物馆教育部',
-          contact_info: '010-12345678'
+          max_participants: 200,
+          requirements: ['对历史文化感兴趣', '具备基本移动设备操作能力'],
+          rewards: ['完成证书', '积分奖励', '专属徽章']
         });
         setTasks([{
           task_id: 'task-001',
@@ -119,9 +118,10 @@ export default function ActivityDetailPage(props) {
           task_type: 'photo',
           points: 150,
           location_name: '中央大厅',
-          target_description: '四羊方尊是中国商代晚期青铜礼器，是现存商代青铜方尊中最大的一件',
+          target_description: '四羊方尊是中国商代晚期青铜礼器',
           task_order: 1,
-          is_required: true
+          is_required: true,
+          status: 'active'
         }, {
           task_id: 'task-002',
           activity_id: activityId,
@@ -131,21 +131,9 @@ export default function ActivityDetailPage(props) {
           points: 100,
           time_limit: 300,
           task_order: 2,
-          is_required: true
-        }, {
-          task_id: 'task-003',
-          activity_id: activityId,
-          task_name: '探索古代工艺',
-          task_desc: '前往指定地点了解青铜器制作工艺',
-          task_type: 'location',
-          points: 80,
-          location_name: '工艺展厅',
-          target_description: '了解青铜器的制作流程和工艺特点',
-          task_order: 3,
-          is_required: false
+          is_required: true,
+          status: 'active'
         }]);
-        setLikeCount(89);
-        setCommentCount(23);
       }
     } catch (error) {
       console.error('加载活动详情失败:', error);
@@ -160,7 +148,12 @@ export default function ActivityDetailPage(props) {
   };
   const handleTabChange = tabId => {
     setActiveTab(tabId);
-    if (tabId === 'activities') {
+    if (tabId === 'home') {
+      $w.utils.navigateTo({
+        pageId: 'home',
+        params: {}
+      });
+    } else if (tabId === 'activities') {
       $w.utils.navigateTo({
         pageId: 'my-activities',
         params: {}
@@ -177,10 +170,12 @@ export default function ActivityDetailPage(props) {
     if (!userId) {
       toast({
         title: "请先登录",
+        description: "登录后即可报名参加活动",
         variant: "destructive"
       });
       return;
     }
+    setRegistering(true);
     try {
       // 创建用户活动记录
       const result = await $w.cloud.callFunction({
@@ -198,10 +193,27 @@ export default function ActivityDetailPage(props) {
         }
       });
       if (result.success) {
-        setIsRegistered(true);
+        setUserActivityRecord(result.data);
         toast({
           title: "报名成功",
-          description: "您已成功报名此活动"
+          description: "您已成功报名参加此活动"
+        });
+
+        // 更新活动参与人数
+        await $w.cloud.callFunction({
+          name: 'callDataSource',
+          data: {
+            dataSourceName: 'wywh5_activity',
+            methodName: 'update',
+            params: {
+              filter: {
+                activity_id: activityId
+              },
+              data: {
+                participants: (activity?.participants || 0) + 1
+              }
+            }
+          }
         });
       }
     } catch (error) {
@@ -210,6 +222,8 @@ export default function ActivityDetailPage(props) {
         description: error.message,
         variant: "destructive"
       });
+    } finally {
+      setRegistering(false);
     }
   };
   const handleStartActivity = () => {
@@ -220,31 +234,11 @@ export default function ActivityDetailPage(props) {
       }
     });
   };
-  const handleLike = async () => {
-    if (isLiked) return;
-    try {
-      setIsLiked(true);
-      setLikeCount(prev => prev + 1);
-      // 这里可以调用点赞API
-      toast({
-        title: "点赞成功",
-        description: "您为这个活动点赞了"
-      });
-    } catch (error) {
-      setIsLiked(false);
-      setLikeCount(prev => prev - 1);
-      toast({
-        title: "点赞失败",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
   const handleShare = async () => {
     try {
       const shareData = {
-        title: activity?.name || '博物馆活动',
-        text: activity?.desc || '一起来探索博物馆的奥秘',
+        title: activity?.name || '精彩活动',
+        text: activity?.desc || '一起来参加这个有趣的活动吧！',
         url: window.location.href
       };
       if (navigator.share) {
@@ -299,7 +293,7 @@ export default function ActivityDetailPage(props) {
       case 'photo':
         return <Camera className="w-5 h-5" />;
       case 'location':
-        return <MapPin className="w-5 h-5" />;
+        return <Navigation className="w-5 h-5" />;
       default:
         return <Target className="w-5 h-5" />;
     }
@@ -339,158 +333,142 @@ export default function ActivityDetailPage(props) {
   return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white pb-20">
       {/* 顶部导航 */}
       <div className="relative">
-        <img src={activity?.cover_img || 'https://picsum.photos/seed/activity-cover/800/400.jpg'} alt={activity?.name} className="w-full h-64 object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent z-10"></div>
+        <img src={activity?.cover_img || 'https://picsum.photos/seed/activity-cover/400/300.jpg'} alt={activity?.name} className="w-full h-64 object-cover" />
         
-        <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between">
-          <button onClick={() => $w.utils.navigateBack()} className="p-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors">
-            <ArrowLeft className="w-5 h-5 text-white" />
-          </button>
-          <div className="flex space-x-2">
-            <button onClick={handleShare} className="p-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors">
-              <Share2 className="w-5 h-5 text-white" />
+        <div className="absolute top-0 left-0 right-0 z-20 p-6">
+          <div className="flex items-center justify-between">
+            <button onClick={() => $w.utils.navigateBack()} className="p-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors">
+              <ArrowLeft className="w-5 h-5 text-white" />
             </button>
-          </div>
-        </div>
-        
-        <div className="absolute bottom-0 left-0 right-0 p-6">
-          <h1 className="text-2xl font-bold text-white mb-2">{activity?.name}</h1>
-          <div className="flex items-center space-x-4 text-white/90 text-sm">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(activity?.difficulty)}`}>
-              {getDifficultyText(activity?.difficulty)}
-            </span>
-            <span className="flex items-center">
-              <Clock className="w-4 h-4 mr-1" />
-              {activity?.duration}
-            </span>
-            <span className="flex items-center">
-              <Users className="w-4 h-4 mr-1" />
-              {activity?.participants}人参与
-            </span>
-            <span className="flex items-center">
-              <Star className="w-4 h-4 mr-1 text-yellow-400" />
-              {activity?.rating}
-            </span>
+            <div className="flex space-x-2">
+              <button onClick={handleShare} className="p-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors">
+                <Share2 className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-6">
-        {/* 活动描述 */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-3">活动介绍</h2>
-          <p className="text-gray-600 leading-relaxed">{activity?.desc}</p>
-        </div>
-
-        {/* 活动信息 */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">活动信息</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">活动时间</span>
-              <span className="text-gray-800 font-medium">
-                {activity?.start_time && new Date(activity.start_time).toLocaleString()} - {activity?.end_time && new Date(activity.end_time).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">活动地点</span>
-              <span className="text-gray-800 font-medium">博物馆内</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">参与人数</span>
-              <span className="text-gray-800 font-medium">{activity?.participants}/{activity?.max_participants}人</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">组织方</span>
-              <span className="text-gray-800 font-medium">{activity?.organizer}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">联系方式</span>
-              <span className="text-gray-800 font-medium">{activity?.contact_info}</span>
+      <div className="px-4 py-6">
+        {/* 活动基本信息 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">{activity?.name}</h1>
+              <div className="flex items-center space-x-3 mb-3">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(activity?.difficulty)}`}>
+                  {getDifficultyText(activity?.difficulty)}
+                </span>
+                <div className="flex items-center text-sm text-gray-500">
+                  <Star className="w-4 h-4 mr-1 text-yellow-500" />
+                  <span>{activity?.rating || 0}</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-500">
+                  <Users className="w-4 h-4 mr-1" />
+                  <span>{activity?.participants || 0}人参与</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* 任务列表 */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">任务列表</h2>
-          <div className="space-y-3">
-            {tasks.map((task, index) => <div key={task.task_id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getTaskTypeColor(task.task_type)}`}>
-                    {getTaskIcon(task.task_type)}
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800">{task.task_name}</h4>
-                    <p className="text-sm text-gray-600">{task.task_desc}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-800">{task.points}分</div>
-                  {task.is_required && <div className="text-xs text-red-600">必做</div>}
-                </div>
-              </div>)}
+          
+          <p className="text-gray-600 leading-relaxed mb-4">{activity?.desc}</p>
+          
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="flex items-center text-sm text-gray-600">
+              <Clock className="w-4 h-4 mr-2 text-blue-500" />
+              <span>时长: {activity?.duration || '60分钟'}</span>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <MapPin className="w-4 h-4 mr-2 text-red-500" />
+              <span>地点: 博物馆</span>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <Calendar className="w-4 h-4 mr-2 text-green-500" />
+              <span>状态: 活跃</span>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
+              <span>奖励: 积分+证书</span>
+            </div>
           </div>
+          
+          {activity?.tags && activity.tags.length > 0 && <div className="flex flex-wrap gap-2">
+              {activity.tags.map((tag, index) => <span key={index} className="px-3 py-1 bg-blue-50 text-blue-600 text-sm rounded-full">
+                  {tag}
+                </span>)}
+            </div>}
         </div>
 
         {/* 活动要求 */}
-        {activity?.requirements && activity.requirements.length > 0 && <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">参与要求</h2>
+        {activity?.requirements && activity.requirements.length > 0 && <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">参与要求</h3>
             <ul className="space-y-2">
               {activity.requirements.map((requirement, index) => <li key={index} className="flex items-start">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3"></div>
+                  <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-600">{requirement}</span>
                 </li>)}
             </ul>
           </div>}
 
+        {/* 任务列表 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">活动任务</h3>
+          <div className="space-y-3">
+            {tasks.map((task, index) => <div key={task.task_id || index} className="border border-gray-200 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getTaskTypeColor(task.task_type)}`}>
+                    {getTaskIcon(task.task_type)}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-800 mb-1">{task.task_name}</h4>
+                    <p className="text-sm text-gray-600 mb-2">{task.task_desc}</p>
+                    <div className="flex items-center space-x-3 text-xs text-gray-500">
+                      <span className={`px-2 py-1 rounded ${getTaskTypeColor(task.task_type)}`}>
+                        {getTaskTypeText(task.task_type)}
+                      </span>
+                      <span className="flex items-center">
+                        <Trophy className="w-3 h-3 mr-1 text-yellow-500" />
+                        {task.points}分
+                      </span>
+                      {task.is_required && <span className="px-2 py-1 bg-red-100 text-red-600 rounded">
+                          必做
+                        </span>}
+                    </div>
+                  </div>
+                </div>
+              </div>)}
+          </div>
+        </div>
+
         {/* 活动奖励 */}
-        {activity?.rewards && activity.rewards.length > 0 && <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">活动奖励</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {activity.rewards.map((reward, index) => <div key={index} className="flex items-center space-x-2 p-3 bg-yellow-50 rounded-lg">
-                  <Trophy className="w-4 h-4 text-yellow-600" />
-                  <span className="text-sm text-gray-700">{reward}</span>
+        {activity?.rewards && activity.rewards.length > 0 && <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">活动奖励</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {activity.rewards.map((reward, index) => <div key={index} className="text-center">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <Trophy className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <p className="text-sm text-gray-600">{reward}</p>
                 </div>)}
             </div>
           </div>}
 
-        {/* 标签 */}
-        {activity?.tags && activity.tags.length > 0 && <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">活动标签</h2>
-            <div className="flex flex-wrap gap-2">
-              {activity.tags.map((tag, index) => <span key={index} className="px-3 py-1 bg-blue-50 text-blue-600 text-sm rounded-full">
-                  {tag}
-                </span>)}
-            </div>
-          </div>}
-
-        {/* 社交互动 */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <button onClick={handleLike} className={`flex items-center space-x-2 ${isLiked ? 'text-red-500' : 'text-gray-500'} hover:text-red-500 transition-colors`}>
-                <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-                <span className="text-sm font-medium">{likeCount}</span>
-              </button>
-              <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors">
-                <MessageCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">{commentCount}</span>
-              </button>
-            </div>
-            <div className="text-sm text-gray-500">
-              {activity?.participants}人已参与
-            </div>
-          </div>
-        </div>
-
         {/* 操作按钮 */}
         <div className="space-y-3">
-          {isRegistered ? <Button onClick={handleStartActivity} className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
+          {!userActivityRecord ? <Button onClick={handleRegister} disabled={registering} className="w-full bg-blue-600 hover:bg-blue-700">
+              {registering ? '报名中...' : '立即报名'}
+            </Button> : userActivityRecord.status === 'registered' ? <Button onClick={handleStartActivity} className="w-full bg-green-600 hover:bg-green-700">
               开始活动
-            </Button> : <Button onClick={handleRegister} className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
-              立即报名
-            </Button>}
+            </Button> : userActivityRecord.status === 'in_progress' ? <Button onClick={handleStartActivity} className="w-full bg-blue-600 hover:bg-blue-700">
+              继续活动
+            </Button> : <div className="text-center py-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+              <p className="text-gray-600 font-medium">活动已完成</p>
+              <p className="text-sm text-gray-500">恭喜您完成了所有任务</p>
+            </div>}
         </div>
       </div>
 
