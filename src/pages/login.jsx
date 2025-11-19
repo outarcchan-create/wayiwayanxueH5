@@ -1,9 +1,9 @@
 // @ts-ignore;
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button, Input } from '@/components/ui';
 // @ts-ignore;
-import { Eye, EyeOff, Phone, Lock, Mail, User, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Phone, Lock, Mail, User, ArrowLeft, Shield } from 'lucide-react';
 
 export default function LoginPage(props) {
   const {
@@ -13,6 +13,7 @@ export default function LoginPage(props) {
   const [loginType, setLoginType] = useState('phone'); // 'phone' | 'password'
   const [isRegister, setIsRegister] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     phone: '',
     password: '',
@@ -21,14 +22,87 @@ export default function LoginPage(props) {
     nickname: ''
   });
   const [countdown, setCountdown] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const {
     toast
   } = useToast();
+  useEffect(() => {
+    // 检查是否已登录
+    const checkLoginStatus = async () => {
+      try {
+        const result = await $w.cloud.callFunction({
+          name: 'checkLoginStatus',
+          data: {}
+        });
+        if (result.success && result.data.isLoggedIn) {
+          // 已登录，跳转到首页
+          $w.utils.navigateTo({
+            pageId: 'home',
+            params: {}
+          });
+        }
+      } catch (error) {
+        console.log('检查登录状态失败:', error);
+      }
+    };
+    checkLoginStatus();
+  }, []);
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+  const validateForm = () => {
+    if (isRegister) {
+      if (!formData.phone || !formData.verifyCode || !formData.nickname) {
+        toast({
+          title: "请填写完整信息",
+          variant: "destructive"
+        });
+        return false;
+      }
+      if (!/^1[3-9]\d{9}$/.test(formData.phone)) {
+        toast({
+          title: "请输入正确的手机号",
+          variant: "destructive"
+        });
+        return false;
+      }
+      if (formData.nickname.length < 2 || formData.nickname.length > 20) {
+        toast({
+          title: "昵称长度应在2-20个字符之间",
+          variant: "destructive"
+        });
+        return false;
+      }
+    } else {
+      if (loginType === 'phone') {
+        if (!formData.phone || !formData.verifyCode) {
+          toast({
+            title: "请填写手机号和验证码",
+            variant: "destructive"
+          });
+          return false;
+        }
+      } else {
+        if (!formData.phone || !formData.password) {
+          toast({
+            title: "请填写手机号和密码",
+            variant: "destructive"
+          });
+          return false;
+        }
+        if (formData.password.length < 6) {
+          toast({
+            title: "密码长度不能少于6位",
+            variant: "destructive"
+          });
+          return false;
+        }
+      }
+    }
+    return true;
   };
   const handleSendVerifyCode = async () => {
     if (!formData.phone) {
@@ -46,11 +120,11 @@ export default function LoginPage(props) {
       return;
     }
     try {
-      // 调用发送验证码API
       await $w.cloud.callFunction({
         name: 'sendVerifyCode',
         data: {
-          phone: formData.phone
+          phone: formData.phone,
+          type: isRegister ? 'register' : 'login'
         }
       });
       toast({
@@ -78,42 +152,8 @@ export default function LoginPage(props) {
     }
   };
   const handleSubmit = async () => {
-    if (isRegister) {
-      // 注册验证
-      if (!formData.phone || !formData.verifyCode || !formData.nickname) {
-        toast({
-          title: "请填写完整信息",
-          variant: "destructive"
-        });
-        return;
-      }
-      if (!/^1[3-9]\d{9}$/.test(formData.phone)) {
-        toast({
-          title: "请输入正确的手机号",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else {
-      // 登录验证
-      if (loginType === 'phone') {
-        if (!formData.phone || !formData.verifyCode) {
-          toast({
-            title: "请填写手机号和验证码",
-            variant: "destructive"
-          });
-          return;
-        }
-      } else {
-        if (!formData.phone || !formData.password) {
-          toast({
-            title: "请填写手机号和密码",
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-    }
+    if (!validateForm()) return;
+    setSubmitting(true);
     try {
       const apiName = isRegister ? 'register' : loginType === 'phone' ? 'loginByPhone' : 'loginByPassword';
       const result = await $w.cloud.callFunction({
@@ -142,7 +182,20 @@ export default function LoginPage(props) {
         description: error.message || "请稍后重试",
         variant: "destructive"
       });
+    } finally {
+      setSubmitting(false);
     }
+  };
+  const handleSwitchMode = () => {
+    setIsRegister(!isRegister);
+    setFormData({
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      verifyCode: '',
+      nickname: ''
+    });
+    setCountdown(0);
   };
   return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* 顶部装饰区域 */}
@@ -189,7 +242,7 @@ export default function LoginPage(props) {
               </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input type="tel" placeholder="请输入手机号" value={formData.phone} onChange={e => handleInputChange('phone', e.target.value)} className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500" />
+                <Input type="tel" placeholder="请输入手机号" value={formData.phone} onChange={e => handleInputChange('phone', e.target.value)} className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500" maxLength={11} />
               </div>
             </div>
 
@@ -200,7 +253,7 @@ export default function LoginPage(props) {
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input type="text" placeholder="请输入昵称" value={formData.nickname} onChange={e => handleInputChange('nickname', e.target.value)} className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500" />
+                  <Input type="text" placeholder="请输入昵称" value={formData.nickname} onChange={e => handleInputChange('nickname', e.target.value)} className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500" maxLength={20} />
                 </div>
               </div>}
 
@@ -212,9 +265,9 @@ export default function LoginPage(props) {
                 <div className="flex space-x-3">
                   <div className="relative flex-1">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <Input type="text" placeholder="请输入验证码" value={formData.verifyCode} onChange={e => handleInputChange('verifyCode', e.target.value)} className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500" />
+                    <Input type="text" placeholder="请输入验证码" value={formData.verifyCode} onChange={e => handleInputChange('verifyCode', e.target.value)} className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500" maxLength={6} />
                   </div>
-                  <Button onClick={handleSendVerifyCode} disabled={countdown > 0} variant="outline" className="h-12 px-6 border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-50">
+                  <Button onClick={handleSendVerifyCode} disabled={countdown > 0 || !formData.phone} variant="outline" className="h-12 px-6 border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-50">
                     {countdown > 0 ? `${countdown}s` : '获取验证码'}
                   </Button>
                 </div>
@@ -241,14 +294,17 @@ export default function LoginPage(props) {
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input type="password" placeholder="请再次输入密码" value={formData.confirmPassword} onChange={e => handleInputChange('confirmPassword', e.target.value)} className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500" />
+                  <Input type={showConfirmPassword ? "text" : "password"} placeholder="请再次输入密码" value={formData.confirmPassword} onChange={e => handleInputChange('confirmPassword', e.target.value)} className="pl-10 pr-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500" />
+                  <button onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
               </div>}
           </div>
 
           {/* 提交按钮 */}
-          <Button onClick={handleSubmit} className="w-full h-12 mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
-            {isRegister ? "立即注册" : "登录"}
+          <Button onClick={handleSubmit} disabled={submitting} className="w-full h-12 mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50">
+            {submitting ? '处理中...' : isRegister ? "立即注册" : "登录"}
           </Button>
 
           {/* 切换注册/登录 */}
@@ -256,18 +312,17 @@ export default function LoginPage(props) {
             <span className="text-gray-600">
               {isRegister ? "已有账号？" : "还没有账号？"}
             </span>
-            <button onClick={() => {
-            setIsRegister(!isRegister);
-            setFormData({
-              phone: '',
-              password: '',
-              confirmPassword: '',
-              verifyCode: '',
-              nickname: ''
-            });
-          }} className="ml-1 text-blue-600 font-medium hover:text-blue-700">
+            <button onClick={handleSwitchMode} className="ml-1 text-blue-600 font-medium hover:text-blue-700">
               {isRegister ? "立即登录" : "立即注册"}
             </button>
+          </div>
+
+          {/* 安全提示 */}
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg flex items-start">
+            <Shield className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+            <p className="text-xs text-blue-700">
+              您的信息将被严格保密，我们承诺保护您的隐私安全
+            </p>
           </div>
 
           {/* 忘记密码 */}

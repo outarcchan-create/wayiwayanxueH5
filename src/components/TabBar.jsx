@@ -2,8 +2,6 @@
 import React from 'react';
 // @ts-ignore;
 import { Home, Calendar, User } from 'lucide-react';
-// @ts-ignore;
-import { useToast } from '@/components/ui';
 
 export function TabBar({
   activeTab,
