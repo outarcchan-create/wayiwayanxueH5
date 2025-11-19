@@ -1,0 +1,109 @@
+
+{
+  "name": "wyw_user_task",
+  "title": "用户任务记录表",
+  "schemas": [
+    {
+      "name": "user_id",
+      "title": "用户ID",
+      "type": "String"
+    },
+    {
+      "name": "task_id",
+      "title": "任务ID",
+      "type": "String"
+    },
+    {
+      "name": "activity_id",
+      "title": "活动ID",
+      "type": "String"
+    },
+    {
+      "name": "status",
+      "title": "完成状态",
+      "type": "String"
+    },
+    {
+      "name": "start_time",
+      "title": "开始时间",
+      "type": "DateTime",
+      "format": "timestamp-s"
+    },
+    {
+      "name": "completed_time",
+      "title": "完成时间",
+      "type": "DateTime",
+      "format": "timestamp-s"
+    },
+    {
+      "name": "score",
+      "title": "得分",
+      "type": "Number"
+    },
+    {
+      "name": "points",
+      "title": "获得积分",
+      "type": "Number"
+    },
+    {
+      "name": "answers",
+      "title": "答题记录",
+      "type": "Object"
+    },
+    {
+      "name": "photo_url",
+      "title": "拍照URL",
+      "type": "Url"
+    },
+    {
+      "name": "time_spent",
+      "title": "用时(秒)",
+      "type": "Number"
+    },
+    {
+      "name": "attempt_count",
+      "title": "尝试次数",
+      "type": "Number"
+    },
+    {
+      "name": "share_count",
+      "title": "分享次数",
+      "type": "Number"
+    },
+    {
+      "name": "last_share_time",
+      "title": "最后分享时间",
+      "type": "DateTime",
+      "format": "timestamp-s"
+    },
+    {
+      "name": "share_platforms",
+      "title": "分享平台",
+      "type": "Array",
+      "items": {
+        "type": "String"
+      }
+    },
+    {
+      "name": "is_public",
+      "title": "是否公开分享",
+      "type": "Boolean"
+    },
+    {
+      "name": "completion_rate",
+      "title": "完成率",
+      "type": "Number"
+    },
+    {
+      "name": "feedback_rating",
+      "title": "反馈评分",
+      "type": "Number"
+    },
+    {
+      "name": "feedback_comment",
+      "title": "反馈评论",
+      "type": "MultiLineString"
+    }
+  ]
+}
+  

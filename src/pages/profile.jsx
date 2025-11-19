@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { User, Settings, Trophy, Calendar, Star, ChevronRight, Award, BookOpen, Target, TrendingUp, LogOut, Edit, Camera } from 'lucide-react';
+import { User, Settings, Trophy, Calendar, Star, ChevronRight, Award, BookOpen, Target, TrendingUp, LogOut, Edit, Camera, Clock, CheckCircle, BarChart3 } from 'lucide-react';
 
 import { TabBar } from '@/components/TabBar';
 export default function ProfilePage(props) {
@@ -15,10 +15,24 @@ export default function ProfilePage(props) {
   const [userStats, setUserStats] = useState({
     totalActivities: 0,
     completedActivities: 0,
+    totalTasks: 0,
+    completedTasks: 0,
     totalPoints: 0,
-    achievements: 0
+    averageScore: 0,
+    totalTimeSpent: 0,
+    achievements: 0,
+    taskCompletionRate: 0,
+    recentActivityCount: 0
   });
   const [recentActivities, setRecentActivities] = useState([]);
+  const [taskStats, setTaskStats] = useState({
+    quizTasks: 0,
+    photoTasks: 0,
+    locationTasks: 0,
+    completedQuizTasks: 0,
+    completedPhotoTasks: 0,
+    completedLocationTasks: 0
+  });
   const [loading, setLoading] = useState(true);
   const {
     toast
@@ -29,53 +43,174 @@ export default function ProfilePage(props) {
   const loadUserData = async () => {
     try {
       setLoading(true);
-      // 获取用户统计数据
-      const statsResult = await $w.cloud.callFunction({
+      const userId = $w.auth.currentUser?.userId;
+      if (!userId) {
+        toast({
+          title: "请先登录",
+          variant: "destructive"
+        });
+        return;
+      }
+      // 获取用户活动记录
+      const userActivityResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
           dataSourceName: 'wyw_user_activity',
           methodName: 'list',
           params: {
             filter: {
-              user_id: $w.auth.currentUser?.userId
+              user_id: userId
             },
             limit: 100
           }
         }
       });
-      if (statsResult.success && statsResult.data) {
-        const activities = statsResult.data;
-        const completed = activities.filter(a => a.status === 'completed').length;
-        setUserStats({
+      // 获取用户任务记录
+      const userTaskResult = await $w.cloud.callFunction({
+        name: 'callDataSource',
+        data: {
+          dataSourceName: 'wyw_user_task',
+          methodName: 'list',
+          params: {
+            filter: {
+              user_id: userId
+            },
+            limit: 200
+          }
+        }
+      });
+      // 获取任务详情用于统计
+      const taskResult = await $w.cloud.callFunction({
+        name: 'callDataSource',
+        data: {
+          dataSourceName: 'wyw_task',
+          methodName: 'list',
+          params: {
+            limit: 100
+          }
+        }
+      });
+      if (userActivityResult.success && userActivityResult.data) {
+        const activities = userActivityResult.data;
+        const completedActivities = activities.filter(a => a.status === 'completed').length;
+        const totalPoints = activities.reduce((sum, a) => sum + (a.points || 0), 0);
+        // 获取最近活动
+        const recentActivitiesData = activities.slice(0, 3).map(activity => ({
+          activity_id: activity.activity_id,
+          activity_name: activity.activity_name || '未知活动',
+          status: activity.status,
+          completed_time: activity.completed_time,
+          points: activity.points || 0
+        }));
+        setRecentActivities(recentActivitiesData);
+        // 更新统计数据
+        setUserStats(prev => ({
+          ...prev,
           totalActivities: activities.length,
-          completedActivities: completed,
-          totalPoints: activities.reduce((sum, a) => sum + (a.points || 0), 0),
-          achievements: Math.floor(completed / 3) // 每3个完成活动获得1个成就
+          completedActivities: completedActivities,
+          totalPoints: totalPoints,
+          achievements: Math.floor(completedActivities / 3),
+          recentActivityCount: recentActivitiesData.length
+        }));
+      }
+      if (userTaskResult.success && userTaskResult.data && taskResult.success && taskResult.data) {
+        const userTasks = userTaskResult.data;
+        const tasks = taskResult.data;
+        const completedTasks = userTasks.filter(t => t.status === 'completed');
+        const totalTasks = userTasks.length;
+        const totalPoints = userTasks.reduce((sum, t) => sum + (t.points || 0), 0);
+        const totalTimeSpent = userTasks.reduce((sum, t) => sum + (t.time_spent || 0), 0);
+        const averageScore = completedTasks.length > 0 ? Math.round(completedTasks.reduce((sum, t) => sum + (t.score || 0), 0) / completedTasks.length) : 0;
+        const taskCompletionRate = totalTasks > 0 ? Math.round(completedTasks.length / totalTasks * 100) : 0;
+        // 按任务类型统计
+        const taskTypeMap = {};
+        tasks.forEach(task => {
+          taskTypeMap[task.task_id] = task.task_type;
         });
-        setRecentActivities(activities.slice(0, 3));
+        const taskStats = {
+          quizTasks: 0,
+          photoTasks: 0,
+          locationTasks: 0,
+          completedQuizTasks: 0,
+          completedPhotoTasks: 0,
+          completedLocationTasks: 0
+        };
+        userTasks.forEach(userTask => {
+          const taskType = taskTypeMap[userTask.task_id];
+          if (taskType === 'quiz') {
+            taskStats.quizTasks++;
+            if (userTask.status === 'completed') taskStats.completedQuizTasks++;
+          } else if (taskType === 'photo') {
+            taskStats.photoTasks++;
+            if (userTask.status === 'completed') taskStats.completedPhotoTasks++;
+          } else if (taskType === 'location') {
+            taskStats.locationTasks++;
+            if (userTask.status === 'completed') taskStats.completedLocationTasks++;
+          }
+        });
+        setTaskStats(taskStats);
+        // 更新统计数据
+        setUserStats(prev => ({
+          ...prev,
+          totalTasks: totalTasks,
+          completedTasks: completedTasks.length,
+          totalPoints: totalPoints,
+          averageScore: averageScore,
+          totalTimeSpent: totalTimeSpent,
+          taskCompletionRate: taskCompletionRate,
+          achievements: Math.floor(completedTasks.length / 5) // 每5个任务获得1个成就
+        }));
+      }
+      // 如果没有数据，使用模拟数据
+      if (!userActivityResult.success || !userTaskResult.success) {
+        setUserStats({
+          totalActivities: 12,
+          completedActivities: 8,
+          totalTasks: 25,
+          completedTasks: 18,
+          totalPoints: 2450,
+          averageScore: 85,
+          totalTimeSpent: 7200,
+          // 2小时
+          achievements: 3,
+          taskCompletionRate: 72,
+          recentActivityCount: 3
+        });
+        setTaskStats({
+          quizTasks: 15,
+          photoTasks: 8,
+          locationTasks: 2,
+          completedQuizTasks: 12,
+          completedPhotoTasks: 5,
+          completedLocationTasks: 1
+        });
+        setRecentActivities([{
+          activity_id: 'demo-1',
+          activity_name: '青铜器探秘之旅',
+          status: 'completed',
+          completed_time: '2024-01-15',
+          points: 300
+        }, {
+          activity_id: 'demo-2',
+          activity_name: '陶瓷艺术寻宝',
+          status: 'in_progress',
+          started_time: '2024-01-18',
+          points: 0
+        }, {
+          activity_id: 'demo-3',
+          activity_name: '古代文字解密',
+          status: 'registered',
+          registered_time: '2024-01-20',
+          points: 0
+        }]);
       }
     } catch (error) {
       console.error('加载用户数据失败:', error);
-      // 使用模拟数据
-      setUserStats({
-        totalActivities: 12,
-        completedActivities: 8,
-        totalPoints: 2450,
-        achievements: 3
+      toast({
+        title: "加载失败",
+        description: "无法获取用户统计数据",
+        variant: "destructive"
       });
-      setRecentActivities([{
-        activity_id: 'demo-1',
-        activity_name: '青铜器探秘之旅',
-        status: 'completed',
-        completed_time: '2024-01-15',
-        points: 300
-      }, {
-        activity_id: 'demo-2',
-        activity_name: '陶瓷艺术寻宝',
-        status: 'in_progress',
-        started_time: '2024-01-18',
-        points: 0
-      }]);
     } finally {
       setLoading(false);
     }
@@ -146,6 +281,40 @@ export default function ProfilePage(props) {
         return 'text-gray-600 bg-gray-100';
     }
   };
+  const formatTime = seconds => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor(seconds % 3600 / 60);
+    if (hours > 0) {
+      return `${hours}小时${minutes}分钟`;
+    }
+    return `${minutes}分钟`;
+  };
+  const getLevelInfo = points => {
+    if (points < 500) return {
+      level: 1,
+      title: '初级探索者',
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-100'
+    };
+    if (points < 1500) return {
+      level: 2,
+      title: '中级探索者',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100'
+    };
+    if (points < 3000) return {
+      level: 3,
+      title: '高级探索者',
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100'
+    };
+    return {
+      level: 4,
+      title: '资深探索者',
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-100'
+    };
+  };
   if (loading) {
     return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="text-center">
@@ -154,6 +323,7 @@ export default function ProfilePage(props) {
         </div>
       </div>;
   }
+  const levelInfo = getLevelInfo(userStats.totalPoints);
   return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white pb-20">
       {/* 顶部装饰区域 */}
       <div className="relative bg-gradient-to-r from-blue-900 to-blue-700 text-white overflow-hidden">
@@ -191,8 +361,8 @@ export default function ProfilePage(props) {
               </p>
               <div className="flex items-center mt-2">
                 <Trophy className="w-4 h-4 text-yellow-400 mr-1" />
-                <span className="text-yellow-400 text-sm font-medium">
-                  Lv.{Math.floor(userStats.totalPoints / 500) + 1} 文化探索者
+                <span className={`text-sm font-medium px-2 py-1 rounded-full ${levelInfo.bgColor} ${levelInfo.color}`}>
+                  Lv.{levelInfo.level} {levelInfo.title}
                 </span>
               </div>
             </div>
@@ -220,13 +390,58 @@ export default function ProfilePage(props) {
               <div className="text-2xl font-bold text-yellow-700 mb-1">
                 {userStats.totalPoints}
               </div>
-              <div className="text-sm text-gray-600">积分</div>
+              <div className="text-sm text-gray-600">总积分</div>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-xl">
               <div className="text-2xl font-bold text-purple-700 mb-1">
                 {userStats.achievements}
               </div>
               <div className="text-sm text-gray-600">成就</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 任务统计 */}
+      <div className="px-4 mt-6">
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+            <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
+            任务统计
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">任务完成率</span>
+              <div className="flex items-center">
+                <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full" style={{
+                  width: `${userStats.taskCompletionRate}%`
+                }}></div>
+                </div>
+                <span className="text-sm font-medium text-gray-800">{userStats.taskCompletionRate}%</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">平均得分</span>
+              <span className="text-sm font-medium text-gray-800">{userStats.averageScore}分</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">总用时</span>
+              <span className="text-sm font-medium text-gray-800">{formatTime(userStats.totalTimeSpent)}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t">
+              <div className="text-center">
+                <div className="text-lg font-bold text-blue-600">{taskStats.completedQuizTasks}/{taskStats.quizTasks}</div>
+                <div className="text-xs text-gray-500">答题任务</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-600">{taskStats.completedPhotoTasks}/{taskStats.photoTasks}</div>
+                <div className="text-xs text-gray-500">拍照任务</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-red-600">{taskStats.completedLocationTasks}/{taskStats.locationTasks}</div>
+                <div className="text-xs text-gray-500">定位任务</div>
+              </div>
             </div>
           </div>
         </div>
@@ -330,7 +545,7 @@ export default function ProfilePage(props) {
                 <div className="flex-1">
                   <div className="font-medium text-gray-800">{activity.activity_name}</div>
                   <div className="text-sm text-gray-500">
-                    {activity.completed_time || activity.started_time || '未知时间'}
+                    {activity.completed_time || activity.started_time || activity.registered_time || '未知时间'}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">

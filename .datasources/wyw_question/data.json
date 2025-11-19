@@ -1,0 +1,81 @@
+
+[
+  {
+    "question_id": "q1",
+    "task_id": "task_001",
+    "question_text": "青铜器主要流行于哪个朝代？",
+    "question_type": "single_choice",
+    "options": ["夏朝", "商周时期", "秦朝", "汉朝"],
+    "correct_answer": "商周时期",
+    "question_order": 1,
+    "points": 33,
+    "explanation": "青铜器主要流行于商周时期，这是中国青铜文明的鼎盛时期"
+  },
+  {
+    "question_id": "q2",
+    "task_id": "task_001",
+    "question_text": "以下哪些是青铜器的常见用途？（多选）",
+    "question_type": "multiple_choice",
+    "options": ["礼器", "兵器", "生活用具", "以上都是"],
+    "correct_answer": "礼器,兵器,生活用具,以上都是",
+    "question_order": 2,
+    "points": 33,
+    "explanation": "青铜器在古代用途广泛，包括礼器、兵器、生活用具等各个方面"
+  },
+  {
+    "question_id": "q3",
+    "task_id": "task_001",
+    "question_text": "青铜器的主要成分是什么？",
+    "question_type": "text",
+    "options": null,
+    "correct_answer": "铜锡合金",
+    "question_order": 3,
+    "points": 34,
+    "explanation": "青铜器主要由铜和锡按一定比例熔炼而成，是典型的铜锡合金"
+  },
+  {
+    "question_id": "q4",
+    "task_id": "task_003",
+    "question_text": "中国陶瓷的发源地主要在哪个流域？",
+    "question_type": "single_choice",
+    "options": ["黄河流域", "长江流域", "珠江流域", "黑龙江流域"],
+    "correct_answer": "黄河流域",
+    "question_order": 1,
+    "points": 40,
+    "explanation": "中国陶瓷最早起源于黄河流域，后来逐渐向全国各地发展"
+  },
+  {
+    "question_id": "q5",
+    "task_id": "task_003",
+    "question_text": "以下哪些是著名的古代窑口？（多选）",
+    "question_type": "multiple_choice",
+    "options": ["景德镇", "龙泉窑", "定窑", "以上都是"],
+    "correct_answer": "景德镇,龙泉窑,定窑,以上都是",
+    "question_order": 2,
+    "points": 40,
+    "explanation": "景德镇、龙泉窑、定窑都是中国历史上著名的窑口，各有特色"
+  },
+  {
+    "question_id": "q6",
+    "task_id": "task_005",
+    "question_text": "甲骨文主要发现于哪个朝代的遗址？",
+    "question_type": "single_choice",
+    "options": ["夏朝", "商朝", "周朝", "秦朝"],
+    "correct_answer": "商朝",
+    "question_order": 1,
+    "points": 60,
+    "explanation": "甲骨文主要发现于商朝晚期的殷墟遗址，是商代占卜记录的文字"
+  },
+  {
+    "question_id": "q7",
+    "task_id": "task_005",
+    "question_text": "甲骨文的书写材料主要是什么？",
+    "question_type": "text",
+    "options": null,
+    "correct_answer": "龟甲兽骨",
+    "question_order": 2,
+    "points": 60,
+    "explanation": "甲骨文是刻在龟甲和兽骨上的文字，主要用于占卜记录"
+  }
+]
+  

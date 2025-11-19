@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { ArrowLeft, Camera, Upload, CheckCircle, AlertCircle, MapPin, Star, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Camera, Upload, CheckCircle, AlertCircle, MapPin, Star, RefreshCw, Share2, RotateCcw, Download, Heart, MessageCircle, Trophy } from 'lucide-react';
 
 export default function PhotoTaskPage(props) {
   const {
@@ -16,6 +16,12 @@ export default function PhotoTaskPage(props) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [userTaskRecord, setUserTaskRecord] = useState(null);
+  const [startTime, setStartTime] = useState(null);
+  const [sharing, setSharing] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
   const {
     toast
   } = useToast();
@@ -29,7 +35,16 @@ export default function PhotoTaskPage(props) {
   const loadTaskData = async () => {
     try {
       setLoading(true);
-      const result = await $w.cloud.callFunction({
+      const userId = $w.auth.currentUser?.userId;
+      if (!userId) {
+        toast({
+          title: "请先登录",
+          variant: "destructive"
+        });
+        return;
+      }
+      // 获取任务详情
+      const taskResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
           dataSourceName: 'wyw_task',
@@ -41,10 +56,62 @@ export default function PhotoTaskPage(props) {
           }
         }
       });
-      if (result.success && result.data) {
-        setTask(result.data);
+      // 获取用户任务记录
+      const userTaskResult = await $w.cloud.callFunction({
+        name: 'callDataSource',
+        data: {
+          dataSourceName: 'wyw_user_task',
+          methodName: 'get',
+          params: {
+            filter: {
+              user_id: userId,
+              task_id: taskId
+            }
+          }
+        }
+      });
+      if (taskResult.success && taskResult.data) {
+        setTask(taskResult.data);
+      }
+      if (userTaskResult.success && userTaskResult.data) {
+        setUserTaskRecord(userTaskResult.data);
+        // 如果任务已完成，显示结果
+        if (userTaskResult.data.status === 'completed') {
+          setShowResult(true);
+          setPreview(userTaskResult.data.photo_url);
+          // 模拟社交数据
+          setLikeCount(Math.floor(Math.random() * 50) + 10);
+          setCommentCount(Math.floor(Math.random() * 20) + 5);
+        }
       } else {
-        // 使用模拟数据
+        // 创建新的用户任务记录
+        const createResult = await $w.cloud.callFunction({
+          name: 'callDataSource',
+          data: {
+            dataSourceName: 'wyw_user_task',
+            methodName: 'create',
+            data: {
+              user_id: userId,
+              task_id: taskId,
+              activity_id: activityId,
+              status: 'in_progress',
+              start_time: new Date().toISOString(),
+              score: 100,
+              points: 0,
+              time_spent: 0,
+              attempt_count: 1,
+              share_count: 0,
+              share_platforms: [],
+              is_public: false
+            }
+          }
+        });
+        if (createResult.success) {
+          setUserTaskRecord(createResult.data);
+        }
+      }
+      // 如果没有数据，使用模拟数据
+      if (!taskResult.success) {
         setTask({
           task_id: taskId,
           task_name: '寻找镇馆之宝',
@@ -55,6 +122,7 @@ export default function PhotoTaskPage(props) {
           photo_example: 'https://picsum.photos/seed/bronze-vessel/300/200.jpg'
         });
       }
+      setStartTime(new Date());
     } catch (error) {
       console.error('加载任务数据失败:', error);
       toast({
@@ -119,6 +187,7 @@ export default function PhotoTaskPage(props) {
           fileList: [uploadResult.fileID]
         });
         const photoUrl = urlResult.fileList[0].tempFileURL;
+        const timeSpent = startTime ? Math.floor((new Date() - startTime) / 1000) : 0;
         // 保存任务完成记录
         const result = await $w.cloud.callFunction({
           name: 'callDataSource',
@@ -134,16 +203,22 @@ export default function PhotoTaskPage(props) {
                 status: 'completed',
                 completed_time: new Date().toISOString(),
                 photo_url: photoUrl,
-                points: task.points
+                points: task?.points || 150,
+                time_spent: timeSpent,
+                completion_rate: 100,
+                attempt_count: (userTaskRecord?.attempt_count || 0) + 1
               }
             }
           }
         });
         if (result.success) {
           setShowResult(true);
+          // 模拟社交数据
+          setLikeCount(Math.floor(Math.random() * 50) + 10);
+          setCommentCount(Math.floor(Math.random() * 20) + 5);
           toast({
             title: "上传成功",
-            description: "照片已成功上传"
+            description: `照片已成功上传，获得${task?.points || 150}积分`
           });
         }
       }
@@ -161,6 +236,154 @@ export default function PhotoTaskPage(props) {
     setPhoto(null);
     setPreview(null);
   };
+  const handleSharePhoto = async (platform = 'system') => {
+    setSharing(true);
+    try {
+      const shareData = {
+        title: `我完成了"${task?.task_name}"任务！`,
+        text: `在${task?.location_name}找到了目标文物，获得了${task?.points}积分！快来一起探索博物馆吧！`,
+        url: window.location.href,
+        image: preview
+      };
+
+      // 更新分享记录
+      await $w.cloud.callFunction({
+        name: 'callDataSource',
+        data: {
+          dataSourceName: 'wyw_user_task',
+          methodName: 'update',
+          params: {
+            filter: {
+              user_id: $w.auth.currentUser?.userId,
+              task_id: taskId
+            },
+            data: {
+              share_count: (userTaskRecord?.share_count || 0) + 1,
+              last_share_time: new Date().toISOString(),
+              share_platforms: [...(userTaskRecord?.share_platforms || []), platform]
+            }
+          }
+        }
+      });
+      if (platform === 'wechat' || platform === 'weibo') {
+        // 模拟社交媒体分享
+        toast({
+          title: "分享成功",
+          description: `已分享到${platform === 'wechat' ? '微信' : '微博'}`
+        });
+      } else if (navigator.share) {
+        await navigator.share(shareData);
+        toast({
+          title: "分享成功",
+          description: "任务成果已分享"
+        });
+      } else {
+        // 复制链接到剪贴板
+        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+        toast({
+          title: "链接已复制",
+          description: "分享内容已复制到剪贴板"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "分享失败",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setSharing(false);
+    }
+  };
+  const handleRetakeTask = async () => {
+    try {
+      // 重置任务状态
+      await $w.cloud.callFunction({
+        name: 'callDataSource',
+        data: {
+          dataSourceName: 'wyw_user_task',
+          methodName: 'update',
+          params: {
+            filter: {
+              user_id: $w.auth.currentUser?.userId,
+              task_id: taskId
+            },
+            data: {
+              status: 'in_progress',
+              start_time: new Date().toISOString(),
+              photo_url: null,
+              points: 0,
+              time_spent: 0,
+              attempt_count: (userTaskRecord?.attempt_count || 0) + 1
+            }
+          }
+        }
+      });
+      // 重置状态
+      setPhoto(null);
+      setPreview(null);
+      setShowResult(false);
+      setStartTime(new Date());
+      toast({
+        title: "重新开始",
+        description: "拍照任务已重置"
+      });
+    } catch (error) {
+      toast({
+        title: "重置失败",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+  const handleLike = async () => {
+    if (liked) return;
+    try {
+      setLiked(true);
+      setLikeCount(prev => prev + 1);
+      // 这里可以调用点赞API
+      toast({
+        title: "点赞成功",
+        description: "您为这个作品点赞了"
+      });
+    } catch (error) {
+      setLiked(false);
+      setLikeCount(prev => prev - 1);
+      toast({
+        title: "点赞失败",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+  const handleComment = () => {
+    // 模拟评论功能
+    toast({
+      title: "评论功能",
+      description: "评论功能正在开发中"
+    });
+  };
+  const handleDownloadPhoto = async () => {
+    try {
+      if (preview) {
+        // 创建下载链接
+        const link = document.createElement('a');
+        link.href = preview;
+        link.download = `museum-task-${taskId}-${Date.now()}.jpg`;
+        link.click();
+        toast({
+          title: "下载成功",
+          description: "照片已保存到本地"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "下载失败",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
   if (loading) {
     return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="text-center">
@@ -170,26 +393,86 @@ export default function PhotoTaskPage(props) {
       </div>;
   }
   if (showResult) {
-    return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
-        <div className="text-center px-6">
-          <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+    return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div className="px-4 py-6">
+        {/* 成功提示 */}
+        <div className="text-center mb-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">拍照完成！</h2>
-          <p className="text-gray-600 mb-6">您已成功完成拍照任务</p>
-          <div className="text-lg text-blue-600 font-medium mb-8">
+          <p className="text-gray-600 mb-2">您已成功完成拍照任务</p>
+          <div className="text-lg text-blue-600 font-medium">
             获得{task?.points || 0}积分
           </div>
+        </div>
+
+        {/* 照片展示 */}
+        {preview && <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">您的作品</h3>
+            <div className="relative rounded-lg overflow-hidden mb-4">
+              <img src={preview} alt="拍摄的照片" className="w-full h-64 object-cover" />
+              <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs flex items-center">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                已完成
+              </div>
+            </div>
+            
+            {/* 社交互动 */}
+            <div className="flex items-center justify-between py-3 border-t border-b">
+              <div className="flex items-center space-x-6">
+                <button onClick={handleLike} className={`flex items-center space-x-2 ${liked ? 'text-red-500' : 'text-gray-500'} hover:text-red-500 transition-colors`}>
+                  <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} />
+                  <span className="text-sm font-medium">{likeCount}</span>
+                </button>
+                <button onClick={handleComment} className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors">
+                  <MessageCircle className="w-5 h-5" />
+                  <span className="text-sm font-medium">{commentCount}</span>
+                </button>
+              </div>
+              <button onClick={handleDownloadPhoto} className="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors">
+                <Download className="w-5 h-5" />
+                <span className="text-sm font-medium">下载</span>
+              </button>
+            </div>
+          </div>}
+
+        {/* 分享功能 */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">分享作品</h3>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button onClick={() => handleSharePhoto('wechat')} disabled={sharing} className="py-3 px-4 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center">
+              <Share2 className="w-4 h-4 mr-2" />
+              微信分享
+            </button>
+            <button onClick={() => handleSharePhoto('weibo')} disabled={sharing} className="py-3 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center">
+              <Share2 className="w-4 h-4 mr-2" />
+              微博分享
+            </button>
+          </div>
+          <button onClick={() => handleSharePhoto('system')} disabled={sharing} className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center">
+            <Share2 className="w-4 h-4 mr-2" />
+            {sharing ? '分享中...' : '更多分享'}
+          </button>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="space-y-3">
           <Button onClick={() => $w.utils.navigateTo({
-          pageId: 'activity-map',
-          params: {
-            activityId: activityId
-          }
-        })} className="bg-blue-600 hover:bg-blue-700">
+            pageId: 'activity-map',
+            params: {
+              activityId: activityId
+            }
+          })} className="w-full bg-blue-600 hover:bg-blue-700">
             返回活动地图
           </Button>
+          <Button onClick={handleRetakeTask} variant="outline" className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center">
+            <RotateCcw className="w-4 h-4 mr-2" />
+            重新拍摄
+          </Button>
         </div>
-      </div>;
+      </div>
+    </div>;
   }
   return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* 顶部导航 */}
@@ -290,6 +573,7 @@ export default function PhotoTaskPage(props) {
                 <li>• 避免使用闪光灯</li>
                 <li>• 请遵守博物馆拍照规定</li>
                 <li>• 照片大小不超过10MB</li>
+                <li>• 完成后可分享到社交媒体</li>
               </ul>
             </div>
           </div>

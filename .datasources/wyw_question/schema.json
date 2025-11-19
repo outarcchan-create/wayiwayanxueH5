@@ -1,0 +1,56 @@
+
+{
+  "name": "wyw_question",
+  "title": "题目表",
+  "schemas": [
+    {
+      "name": "question_id",
+      "title": "题目ID",
+      "type": "String"
+    },
+    {
+      "name": "task_id",
+      "title": "所属任务ID",
+      "type": "String"
+    },
+    {
+      "name": "question_text",
+      "title": "题目内容",
+      "type": "MultiLineString"
+    },
+    {
+      "name": "question_type",
+      "title": "题目类型",
+      "type": "String"
+    },
+    {
+      "name": "options",
+      "title": "选项列表",
+      "type": "Array",
+      "items": {
+        "type": "String"
+      }
+    },
+    {
+      "name": "correct_answer",
+      "title": "正确答案",
+      "type": "String"
+    },
+    {
+      "name": "question_order",
+      "title": "题目顺序",
+      "type": "Number"
+    },
+    {
+      "name": "points",
+      "title": "题目分值",
+      "type": "Number"
+    },
+    {
+      "name": "explanation",
+      "title": "答案解释",
+      "type": "MultiLineString"
+    }
+  ]
+}
+  
