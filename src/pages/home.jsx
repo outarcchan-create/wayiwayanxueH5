@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { Search, MapPin, Calendar, Star, Trophy, Users, Clock, Filter, ChevronRight, Compass, Camera, HelpCircle, Target } from 'lucide-react';
+import { Search, MapPin, Calendar, Star, Trophy, Users, Clock, Filter, ChevronRight, Compass, Camera, HelpCircle, Target, RefreshCw, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 
 import { TabBar } from '@/components/TabBar';
 export default function HomePage(props) {
@@ -15,6 +15,10 @@ export default function HomePage(props) {
   const [activities, setActivities] = useState([]);
   const [filteredActivities, setFilteredActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [networkStatus, setNetworkStatus] = useState('online');
+  const [retryCount, setRetryCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('popular');
@@ -27,17 +31,53 @@ export default function HomePage(props) {
     toast
   } = useToast();
   useEffect(() => {
+    // 监听网络状态
+    const handleOnline = () => {
+      setNetworkStatus('online');
+      toast({
+        title: "网络已连接",
+        description: "数据同步已恢复"
+      });
+    };
+    const handleOffline = () => {
+      setNetworkStatus('offline');
+      toast({
+        title: "网络已断开",
+        description: "请检查网络连接",
+        variant: "destructive"
+      });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    setNetworkStatus(navigator.onLine ? 'online' : 'offline');
     loadActivities();
     loadUserStats();
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
   useEffect(() => {
     filterAndSortActivities();
   }, [activities, searchQuery, selectedCategory, sortBy]);
-  const loadActivities = async () => {
+  const loadActivities = async (isRetry = false) => {
     try {
-      setLoading(true);
+      if (isRetry) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      // 检查网络状态
+      if (!navigator.onLine) {
+        throw new Error('网络连接已断开，请检查网络设置');
+      }
+      // 设置请求超时
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('请求超时，请稍后重试')), 10000);
+      });
       // 获取活动列表
-      const result = await $w.cloud.callFunction({
+      const result = await Promise.race([timeoutPromise, $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
           dataSourceName: 'wywh5_activity',
@@ -49,59 +89,89 @@ export default function HomePage(props) {
             limit: 20
           }
         }
-      });
+      })]);
       if (result.success && result.data) {
         setActivities(result.data);
+        setRetryCount(0);
+        // 成功加载时的提示
+        if (isRetry) {
+          toast({
+            title: "刷新成功",
+            description: `已加载 ${result.data.length} 个活动`
+          });
+        }
       } else {
-        // 使用模拟数据
-        const mockActivities = [{
-          activity_id: 'act-001',
-          name: '青铜器探秘之旅',
-          desc: '深入了解中国古代青铜器的历史文化和制作工艺，通过互动任务探索博物馆的珍贵藏品。',
-          cover_img: 'https://picsum.photos/seed/bronze-tour/400/300.jpg',
-          difficulty: 'medium',
-          duration: '90分钟',
-          participants: 156,
-          rating: 4.8,
-          tags: ['历史', '文化', '青铜器'],
-          status: 'active',
-          created_time: '2024-01-10T08:00:00Z'
-        }, {
-          activity_id: 'act-002',
-          name: '陶瓷艺术寻宝',
-          desc: '探索中国陶瓷艺术的发展历程和精美作品，完成寻宝任务赢取奖励。',
-          cover_img: 'https://picsum.photos/seed/ceramic-hunt/400/300.jpg',
-          difficulty: 'easy',
-          duration: '60分钟',
-          participants: 89,
-          rating: 4.6,
-          tags: ['艺术', '陶瓷', '寻宝'],
-          status: 'active',
-          created_time: '2024-01-12T10:00:00Z'
-        }, {
-          activity_id: 'act-003',
-          name: '古代文字解密',
-          desc: '学习古代文字的演变历程，破解历史密码，体验古代文化的魅力。',
-          cover_img: 'https://picsum.photos/seed/ancient-text/400/300.jpg',
-          difficulty: 'hard',
-          duration: '120分钟',
-          participants: 45,
-          rating: 4.9,
-          tags: ['文字', '历史', '解密'],
-          status: 'active',
-          created_time: '2024-01-15T14:00:00Z'
-        }];
-        setActivities(mockActivities);
+        throw new Error(result.message || '获取活动列表失败');
       }
     } catch (error) {
       console.error('加载活动失败:', error);
+      setError(error.message);
+      // 根据错误类型显示不同的提示
+      if (error.message.includes('网络')) {
+        toast({
+          title: "网络错误",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else if (error.message.includes('超时')) {
+        toast({
+          title: "请求超时",
+          description: "服务器响应较慢，请稍后重试",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "加载失败",
+          description: error.message || "无法获取活动列表",
+          variant: "destructive"
+        });
+      }
+      // 使用模拟数据作为降级方案
+      const mockActivities = [{
+        activity_id: 'act-001',
+        name: '青铜器探秘之旅',
+        desc: '深入了解中国古代青铜器的历史文化和制作工艺，通过互动任务探索博物馆的珍贵藏品。',
+        cover_img: 'https://picsum.photos/seed/bronze-tour/400/300.jpg',
+        difficulty: 'medium',
+        duration: '90分钟',
+        participants: 156,
+        rating: 4.8,
+        tags: ['历史', '文化', '青铜器'],
+        status: 'active',
+        created_time: '2024-01-10T08:00:00Z'
+      }, {
+        activity_id: 'act-002',
+        name: '陶瓷艺术寻宝',
+        desc: '探索中国陶瓷艺术的发展历程和精美作品，完成寻宝任务赢取奖励。',
+        cover_img: 'https://picsum.photos/seed/ceramic-hunt/400/300.jpg',
+        difficulty: 'easy',
+        duration: '60分钟',
+        participants: 89,
+        rating: 4.6,
+        tags: ['艺术', '陶瓷', '寻宝'],
+        status: 'active',
+        created_time: '2024-01-12T10:00:00Z'
+      }, {
+        activity_id: 'act-003',
+        name: '古代文字解密',
+        desc: '学习古代文字的演变历程，破解历史密码，体验古代文化的魅力。',
+        cover_img: 'https://picsum.photos/seed/ancient-text/400/300.jpg',
+        difficulty: 'hard',
+        duration: '120分钟',
+        participants: 45,
+        rating: 4.9,
+        tags: ['文字', '历史', '解密'],
+        status: 'active',
+        created_time: '2024-01-15T14:00:00Z'
+      }];
+      setActivities(mockActivities);
       toast({
-        title: "加载失败",
-        description: "无法获取活动列表",
-        variant: "destructive"
+        title: "使用离线数据",
+        description: "当前显示的是示例数据"
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
   const loadUserStats = async () => {
@@ -135,7 +205,20 @@ export default function HomePage(props) {
       }
     } catch (error) {
       console.error('加载用户统计失败:', error);
+      // 静默失败，不影响主要功能
     }
+  };
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    if (retryCount >= 2) {
+      toast({
+        title: "重试次数过多",
+        description: "请检查网络连接或稍后再试",
+        variant: "destructive"
+      });
+      return;
+    }
+    loadActivities(true);
   };
   const filterAndSortActivities = () => {
     let filtered = [...activities];
@@ -187,6 +270,11 @@ export default function HomePage(props) {
     }
   };
   const handleActivityClick = activityId => {
+    // 添加点击反馈
+    toast({
+      title: "正在加载",
+      description: "正在获取活动详情..."
+    });
     $w.utils.navigateTo({
       pageId: 'activity-detail',
       params: {
@@ -196,12 +284,33 @@ export default function HomePage(props) {
   };
   const handleSearch = query => {
     setSearchQuery(query);
+    if (query && filteredActivities.length === 0) {
+      toast({
+        title: "无搜索结果",
+        description: "没有找到匹配的活动"
+      });
+    }
   };
   const handleCategoryChange = category => {
     setSelectedCategory(category);
+    const count = activities.filter(activity => category === 'all' || activity.tags && activity.tags.includes(category)).length;
+    toast({
+      title: "筛选完成",
+      description: `找到 ${count} 个相关活动`
+    });
   };
   const handleSortChange = sort => {
     setSortBy(sort);
+    const sortText = {
+      popular: '最受欢迎',
+      rating: '评分最高',
+      newest: '最新发布',
+      difficulty: '难度排序'
+    };
+    toast({
+      title: "排序方式已更改",
+      description: `当前按${sortText[sort]}显示`
+    });
   };
   const getDifficultyColor = difficulty => {
     switch (difficulty) {
@@ -233,12 +342,20 @@ export default function HomePage(props) {
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">加载中...</p>
+          <p className="text-sm text-gray-500 mt-2">正在获取活动列表</p>
         </div>
       </div>;
   }
   return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white pb-20">
+      {/* 网络状态指示器 */}
+      <div className={`fixed top-0 left-0 right-0 z-50 px-4 py-2 ${networkStatus === 'online' ? 'bg-green-500' : 'bg-red-500'} text-white text-center text-sm transition-all duration-300`}>
+        <div className="flex items-center justify-center">
+          {networkStatus === 'online' ? <><Wifi className="w-4 h-4 mr-2" />网络连接正常</> : <><WifiOff className="w-4 h-4 mr-2" />网络连接已断开</>}
+        </div>
+      </div>
+
       {/* 顶部搜索栏 */}
-      <div className="relative bg-gradient-to-r from-blue-900 to-blue-700 text-white">
+      <div className="relative bg-gradient-to-r from-blue-900 to-blue-700 text-white mt-8">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-32 h-32 border-4 border-yellow-400 rounded-full transform -translate-x-16 -translate-y-16"></div>
           <div className="absolute top-10 right-10 w-24 h-24 border-4 border-yellow-400 rounded-lg transform rotate-45"></div>
@@ -256,6 +373,26 @@ export default function HomePage(props) {
           </div>
         </div>
       </div>
+
+      {/* 错误提示 */}
+      {error && <div className="px-4 py-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-start">
+              <AlertTriangle className="w-5 h-5 text-red-600 mr-3 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-red-800 font-medium mb-1">加载失败</h3>
+                <p className="text-red-600 text-sm mb-3">{error}</p>
+                <div className="flex space-x-2">
+                  <Button onClick={handleRetry} disabled={refreshing} variant="outline" size="sm" className="border-red-300 text-red-600 hover:bg-red-50">
+                    <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                    {refreshing ? '重试中...' : '重试'}
+                  </Button>
+                  <span className="text-xs text-red-500 self-center">重试次数: {retryCount}/3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>}
 
       {/* 用户统计卡片 */}
       {$w.auth.currentUser && <div className="px-4 -mt-4">
@@ -281,10 +418,16 @@ export default function HomePage(props) {
       <div className="px-4 py-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-800">活动分类</h2>
-          <button className="flex items-center text-blue-600 text-sm">
-            <Filter className="w-4 h-4 mr-1" />
-            筛选
-          </button>
+          <div className="flex items-center space-x-2">
+            <button onClick={() => loadActivities(true)} disabled={refreshing} className="flex items-center text-blue-600 text-sm">
+              <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+              刷新
+            </button>
+            <button className="flex items-center text-blue-600 text-sm">
+              <Filter className="w-4 h-4 mr-1" />
+              筛选
+            </button>
+          </div>
         </div>
         
         <div className="flex space-x-2 overflow-x-auto pb-2">
