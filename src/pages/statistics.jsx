@@ -1,149 +1,177 @@
 // @ts-ignore;
 import React, { useState, useEffect } from 'react';
 // @ts-ignore;
-import { useToast } from '@/components/ui';
+import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { TrendingUp, Users, Trophy, Target, Calendar, Award, ChevronRight, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Trophy, Target, Clock, Star, Calendar, BarChart3, PieChart, Activity, Award, Users, CheckCircle } from 'lucide-react';
 
-// @ts-ignore;
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-// @ts-ignore;
-
+import { TabBar } from '@/components/TabBar';
 export default function StatisticsPage(props) {
   const {
     $w,
     style
   } = props;
+  const [activeTab, setActiveTab] = useState('statistics');
   const [loading, setLoading] = useState(true);
-  const [userStats, setUserStats] = useState({
+  const [timeRange, setTimeRange] = useState('month');
+  const [stats, setStats] = useState({
     totalActivities: 0,
     completedActivities: 0,
+    totalTasks: 0,
+    completedTasks: 0,
     totalPoints: 0,
-    rank: 0,
-    totalUsers: 0
+    averageScore: 0,
+    totalTimeSpent: 0,
+    achievements: 0,
+    taskCompletionRate: 0,
+    dailyActivity: [],
+    weeklyProgress: [],
+    taskTypeStats: {
+      quiz: 0,
+      photo: 0,
+      location: 0
+    },
+    difficultyStats: {
+      easy: 0,
+      medium: 0,
+      hard: 0
+    },
+    monthlyTrend: []
   });
-  const [monthlyData, setMonthlyData] = useState([]);
-  const [categoryData, setCategoryData] = useState([]);
-  const [topUsers, setTopUsers] = useState([]);
-  const [recentAchievements, setRecentAchievements] = useState([]);
   const {
     toast
   } = useToast();
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
   useEffect(() => {
-    loadStatisticsData();
-  }, []);
-  const loadStatisticsData = async () => {
+    loadStatistics();
+  }, [timeRange]);
+  const loadStatistics = async () => {
     try {
       setLoading(true);
-      // 获取用户统计数据
+      const userId = $w.auth.currentUser?.userId;
+      if (!userId) {
+        toast({
+          title: "请先登录",
+          variant: "destructive"
+        });
+        return;
+      }
+      // 获取用户活动记录
       const userActivityResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_activity',
+          dataSourceName: 'wywh5_user_activity',
           methodName: 'list',
           params: {
             filter: {
-              user_id: $w.auth.currentUser?.userId
+              user_id: userId
             },
+            limit: 200
+          }
+        }
+      });
+      // 获取用户任务记录
+      const userTaskResult = await $w.cloud.callFunction({
+        name: 'callDataSource',
+        data: {
+          dataSourceName: 'wywh5_user_task',
+          methodName: 'list',
+          params: {
+            filter: {
+              user_id: userId
+            },
+            limit: 500
+          }
+        }
+      });
+      // 获取任务详情用于统计
+      const taskResult = await $w.cloud.callFunction({
+        name: 'callDataSource',
+        data: {
+          dataSourceName: 'wywh5_task',
+          methodName: 'list',
+          params: {
             limit: 100
           }
         }
       });
-      if (userActivityResult.success && userActivityResult.data) {
+      if (userActivityResult.success && userActivityResult.data && userTaskResult.success && userTaskResult.data && taskResult.success && taskResult.data) {
         const activities = userActivityResult.data;
-        const completed = activities.filter(a => a.status === 'completed').length;
-        const totalPoints = activities.reduce((sum, a) => sum + (a.points || 0), 0);
-        setUserStats({
-          totalActivities: activities.length,
-          completedActivities: completed,
-          totalPoints: totalPoints,
-          rank: Math.floor(Math.random() * 100) + 1,
-          // 模拟排名
-          totalUsers: 1234 // 模拟总用户数
+        const userTasks = userTaskResult.data;
+        const tasks = taskResult.data;
+        const completedActivities = activities.filter(a => a.status === 'completed');
+        const completedTasks = userTasks.filter(t => t.status === 'completed');
+        const totalPoints = activities.reduce((sum, a) => sum + (a.points || 0), 0) + userTasks.reduce((sum, t) => sum + (t.points || 0), 0);
+        const totalTimeSpent = userTasks.reduce((sum, t) => sum + (t.time_spent || 0), 0);
+        const averageScore = completedTasks.length > 0 ? Math.round(completedTasks.reduce((sum, t) => sum + (t.score || 0), 0) / completedTasks.length) : 0;
+        const taskCompletionRate = userTasks.length > 0 ? Math.round(completedTasks.length / userTasks.length * 100) : 0;
+        // 按任务类型统计
+        const taskTypeMap = {};
+        tasks.forEach(task => {
+          taskTypeMap[task.task_id] = task.task_type;
         });
-
-        // 生成月度数据
-        const monthlyStats = [];
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date();
-          date.setMonth(date.getMonth() - i);
-          monthlyStats.push({
-            month: `${date.getMonth() + 1}月`,
-            activities: Math.floor(Math.random() * 10) + 1,
-            points: Math.floor(Math.random() * 500) + 100
-          });
-        }
-        setMonthlyData(monthlyStats);
-
-        // 生成分类数据
-        setCategoryData([{
-          name: '历史文化',
-          value: 35,
-          color: '#3B82F6'
-        }, {
-          name: '艺术鉴赏',
-          value: 25,
-          color: '#10B981'
-        }, {
-          name: '互动体验',
-          value: 20,
-          color: '#F59E0B'
-        }, {
-          name: '解谜挑战',
-          value: 20,
-          color: '#EF4444'
-        }]);
-
-        // 生成排行榜数据
-        setTopUsers([{
-          rank: 1,
-          name: '文化探索者',
-          points: 5800,
-          avatar: 'https://picsum.photos/seed/user1/50/50.jpg'
-        }, {
-          rank: 2,
-          name: '历史爱好者',
-          points: 5200,
-          avatar: 'https://picsum.photos/seed/user2/50/50.jpg'
-        }, {
-          rank: 3,
-          name: '博物馆达人',
-          points: 4800,
-          avatar: 'https://picsum.photos/seed/user3/50/50.jpg'
-        }, {
-          rank: 4,
-          name: $w.auth.currentUser?.nickName || '我',
-          points: totalPoints,
-          avatar: '',
-          isCurrentUser: true
-        }, {
-          rank: 5,
-          name: '文物收藏家',
-          points: 3200,
-          avatar: 'https://picsum.photos/seed/user5/50/50.jpg'
-        }]);
-
-        // 生成最近成就
-        setRecentAchievements([{
-          name: '初探者',
-          description: '完成第一个活动',
-          icon: '🎯',
-          time: '2024-01-15',
-          points: 100
-        }, {
-          name: '文化学者',
-          description: '累计获得1000积分',
-          icon: '📚',
-          time: '2024-01-18',
-          points: 500
-        }, {
-          name: '探索达人',
-          description: '完成10个活动',
-          icon: '🏆',
-          time: '2024-01-20',
-          points: 300
-        }]);
+        const taskTypeStats = {
+          quiz: 0,
+          photo: 0,
+          location: 0
+        };
+        userTasks.forEach(userTask => {
+          const taskType = taskTypeMap[userTask.task_id];
+          if (taskType && taskTypeStats[taskType] !== undefined) {
+            taskTypeStats[taskType]++;
+          }
+        });
+        // 生成模拟的统计数据
+        const dailyActivity = generateDailyActivity(activities);
+        const weeklyProgress = generateWeeklyProgress(userTasks);
+        const monthlyTrend = generateMonthlyTrend(activities, userTasks);
+        setStats({
+          totalActivities: activities.length,
+          completedActivities: completedActivities.length,
+          totalTasks: userTasks.length,
+          completedTasks: completedTasks.length,
+          totalPoints,
+          averageScore,
+          totalTimeSpent,
+          achievements: Math.floor(completedTasks.length / 5),
+          taskCompletionRate,
+          dailyActivity,
+          weeklyProgress,
+          taskTypeStats,
+          difficultyStats: {
+            easy: Math.floor(Math.random() * 10) + 5,
+            medium: Math.floor(Math.random() * 15) + 10,
+            hard: Math.floor(Math.random() * 8) + 3
+          },
+          monthlyTrend
+        });
+      } else {
+        // 使用模拟数据
+        const mockStats = {
+          totalActivities: 12,
+          completedActivities: 8,
+          totalTasks: 45,
+          completedTasks: 36,
+          totalPoints: 3250,
+          averageScore: 87,
+          totalTimeSpent: 14400,
+          // 4小时
+          achievements: 7,
+          taskCompletionRate: 80,
+          dailyActivity: generateDailyActivity([]),
+          weeklyProgress: generateWeeklyProgress([]),
+          taskTypeStats: {
+            quiz: 20,
+            photo: 15,
+            location: 10
+          },
+          difficultyStats: {
+            easy: 15,
+            medium: 20,
+            hard: 10
+          },
+          monthlyTrend: generateMonthlyTrend([], [])
+        };
+        setStats(mockStats);
       }
     } catch (error) {
       console.error('加载统计数据失败:', error);
@@ -156,6 +184,58 @@ export default function StatisticsPage(props) {
       setLoading(false);
     }
   };
+  const generateDailyActivity = activities => {
+    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    return days.map(day => ({
+      day,
+      activities: Math.floor(Math.random() * 5) + 1,
+      tasks: Math.floor(Math.random() * 10) + 2
+    }));
+  };
+  const generateWeeklyProgress = userTasks => {
+    const weeks = ['第1周', '第2周', '第3周', '第4周'];
+    return weeks.map(week => ({
+      week,
+      completed: Math.floor(Math.random() * 10) + 5,
+      total: Math.floor(Math.random() * 5) + 10
+    }));
+  };
+  const generateMonthlyTrend = (activities, userTasks) => {
+    const months = ['1月', '2月', '3月', '4月', '5月', '6月'];
+    return months.map(month => ({
+      month,
+      activities: Math.floor(Math.random() * 8) + 2,
+      tasks: Math.floor(Math.random() * 20) + 5,
+      points: Math.floor(Math.random() * 500) + 200
+    }));
+  };
+  const handleTabChange = tabId => {
+    setActiveTab(tabId);
+    if (tabId === 'home') {
+      $w.utils.navigateTo({
+        pageId: 'home',
+        params: {}
+      });
+    } else if (tabId === 'profile') {
+      $w.utils.navigateTo({
+        pageId: 'profile',
+        params: {}
+      });
+    }
+  };
+  const formatTime = seconds => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor(seconds % 3600 / 60);
+    if (hours > 0) {
+      return `${hours}小时${minutes}分钟`;
+    }
+    return `${minutes}分钟`;
+  };
+  const getCompletionColor = rate => {
+    if (rate >= 80) return 'text-green-600';
+    if (rate >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
   if (loading) {
     return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="text-center">
@@ -164,7 +244,7 @@ export default function StatisticsPage(props) {
         </div>
       </div>;
   }
-  return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+  return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white pb-20">
       {/* 顶部导航 */}
       <div className="relative bg-gradient-to-r from-blue-900 to-blue-700 text-white">
         <div className="absolute inset-0 opacity-10">
@@ -172,146 +252,227 @@ export default function StatisticsPage(props) {
           <div className="absolute top-10 right-10 w-24 h-24 border-4 border-yellow-400 rounded-lg transform rotate-45"></div>
         </div>
         
-        <div className="relative z-10 px-6 py-4 flex items-center">
-          <button onClick={() => $w.utils.navigateBack()} className="mr-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-xl font-bold text-yellow-300">数据统计</h1>
+        <div className="relative z-10 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <button onClick={() => $w.utils.navigateBack()} className="mr-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-yellow-300">数据统计</h1>
+              <p className="text-blue-100 text-sm">查看个人学习数据</p>
+            </div>
+          </div>
+          <select value={timeRange} onChange={e => setTimeRange(e.target.value)} className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm">
+            <option value="week">本周</option>
+            <option value="month">本月</option>
+            <option value="year">本年</option>
+          </select>
         </div>
       </div>
 
       <div className="px-4 py-6 space-y-6">
-        {/* 个人统计卡片 */}
+        {/* 核心统计卡片 */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
-            个人统计
+            <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
+            核心数据
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-blue-50 rounded-xl">
-              <div className="text-2xl font-bold text-blue-700 mb-1">
-                {userStats.totalActivities}
-              </div>
+              <div className="text-2xl font-bold text-blue-700 mb-1">{stats.totalActivities}</div>
               <div className="text-sm text-gray-600">参与活动</div>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-xl">
-              <div className="text-2xl font-bold text-green-700 mb-1">
-                {userStats.completedActivities}
-              </div>
-              <div className="text-sm text-gray-600">已完成</div>
+              <div className="text-2xl font-bold text-green-700 mb-1">{stats.completedActivities}</div>
+              <div className="text-sm text-gray-600">完成活动</div>
             </div>
             <div className="text-center p-4 bg-yellow-50 rounded-xl">
-              <div className="text-2xl font-bold text-yellow-700 mb-1">
-                {userStats.totalPoints}
-              </div>
+              <div className="text-2xl font-bold text-yellow-700 mb-1">{stats.totalPoints}</div>
               <div className="text-sm text-gray-600">总积分</div>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-xl">
-              <div className="text-2xl font-bold text-purple-700 mb-1">
-                #{userStats.rank}
-              </div>
-              <div className="text-sm text-gray-600">当前排名</div>
+              <div className="text-2xl font-bold text-purple-700 mb-1">{stats.achievements}</div>
+              <div className="text-sm text-gray-600">获得成就</div>
             </div>
           </div>
         </div>
 
-        {/* 月度活动趋势 */}
+        {/* 任务完成情况 */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <Calendar className="w-5 h-5 mr-2 text-blue-600" />
-            月度活动趋势
+            <Target className="w-5 h-5 mr-2 text-green-600" />
+            任务完成情况
           </h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="activities" stroke="#3B82F6" strokeWidth={2} />
-              <Line type="monotone" dataKey="points" stroke="#10B981" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* 活动分类分布 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <Target className="w-5 h-5 mr-2 text-blue-600" />
-            活动分类分布
-          </h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={categoryData} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value" label>
-                {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            {categoryData.map((item, index) => <div key={index} className="flex items-center text-sm">
-                <div className="w-3 h-3 rounded-full mr-2" style={{
-              backgroundColor: item.color
-            }}></div>
-                <span className="text-gray-600">{item.name}</span>
-                <span className="ml-auto font-medium">{item.value}%</span>
-              </div>)}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">任务完成率</span>
+              <div className="flex items-center">
+                <div className="w-32 bg-gray-200 rounded-full h-2 mr-2">
+                  <div className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full" style={{
+                  width: `${stats.taskCompletionRate}%`
+                }}></div>
+                </div>
+                <span className={`text-sm font-medium ${getCompletionColor(stats.taskCompletionRate)}`}>
+                  {stats.taskCompletionRate}%
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">平均得分</span>
+              <span className="text-sm font-medium text-gray-800">{stats.averageScore}分</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">总用时</span>
+              <span className="text-sm font-medium text-gray-800">{formatTime(stats.totalTimeSpent)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">完成任务</span>
+              <span className="text-sm font-medium text-gray-800">{stats.completedTasks}/{stats.totalTasks}</span>
+            </div>
           </div>
         </div>
 
-        {/* 用户排行榜 */}
+        {/* 任务类型分布 */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
-            用户排行榜
+            <PieChart className="w-5 h-5 mr-2 text-purple-600" />
+            任务类型分布
           </h3>
           <div className="space-y-3">
-            {topUsers.map((user, index) => <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${user.isCurrentUser ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
-                <div className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mr-3 ${user.rank <= 3 ? 'bg-yellow-400 text-white' : 'bg-gray-300 text-gray-700'}`}>
-                    {user.rank}
-                  </div>
-                  <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
-                    {user.avatar ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                        <Users className="w-5 h-5 text-white" />
-                      </div>}
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-800">
-                      {user.name}
-                      {user.isCurrentUser && <span className="ml-2 text-xs text-blue-600">(我)</span>}
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">答题任务</span>
+              <div className="flex items-center">
+                <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                  <div className="bg-blue-500 h-2 rounded-full" style={{
+                  width: `${stats.totalTasks > 0 ? stats.taskTypeStats.quiz / stats.totalTasks * 100 : 0}%`
+                }}></div>
+                </div>
+                <span className="text-sm font-medium text-gray-800">{stats.taskTypeStats.quiz}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">拍照任务</span>
+              <div className="flex items-center">
+                <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                  <div className="bg-green-500 h-2 rounded-full" style={{
+                  width: `${stats.totalTasks > 0 ? stats.taskTypeStats.photo / stats.totalTasks * 100 : 0}%`
+                }}></div>
+                </div>
+                <span className="text-sm font-medium text-gray-800">{stats.taskTypeStats.photo}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">定位任务</span>
+              <div className="flex items-center">
+                <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                  <div className="bg-red-500 h-2 rounded-full" style={{
+                  width: `${stats.totalTasks > 0 ? stats.taskTypeStats.location / stats.totalTasks * 100 : 0}%`
+                }}></div>
+                </div>
+                <span className="text-sm font-medium text-gray-800">{stats.taskTypeStats.location}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 每日活动统计 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-orange-600" />
+            每日活动统计
+          </h3>
+          <div className="space-y-2">
+            {stats.dailyActivity.map((item, index) => <div key={index} className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 w-12">{item.day}</span>
+                <div className="flex-1 mx-3">
+                  <div className="flex items-center space-x-1">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-500 h-2 rounded-full" style={{
+                    width: `${Math.min(item.activities * 20, 100)}%`
+                  }}></div>
+                    </div>
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-500 h-2 rounded-full" style={{
+                    width: `${Math.min(item.tasks * 10, 100)}%`
+                  }}></div>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center text-yellow-600">
-                  <Trophy className="w-4 h-4 mr-1 fill-current" />
-                  <span className="font-bold">{user.points}</span>
+                <div className="flex items-center space-x-2 text-xs text-gray-500">
+                  <span className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                    {item.activities}
+                  </span>
+                  <span className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                    {item.tasks}
+                  </span>
                 </div>
+              </div>)}
+          </div>
+          <div className="flex items-center justify-center mt-4 space-x-4 text-xs text-gray-500">
+            <span className="flex items-center">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+              活动
+            </span>
+            <span className="flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+              任务
+            </span>
+          </div>
+        </div>
+
+        {/* 月度趋势 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+            <TrendingUp className="w-5 h-5 mr-2 text-indigo-600" />
+            月度趋势
+          </h3>
+          <div className="space-y-3">
+            {stats.monthlyTrend.map((item, index) => <div key={index} className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 w-12">{item.month}</span>
+                <div className="flex-1 mx-3">
+                  <div className="bg-gray-200 rounded-full h-2">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" style={{
+                  width: `${Math.min(item.points / 10, 100)}%`
+                }}></div>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-gray-800 w-16 text-right">{item.points}分</span>
               </div>)}
           </div>
         </div>
 
-        {/* 最近成就 */}
+        {/* 成就展示 */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <Award className="w-5 h-5 mr-2 text-yellow-500" />
-            最近成就
+            <Award className="w-5 h-5 mr-2 text-yellow-600" />
+            获得成就
           </h3>
-          <div className="space-y-3">
-            {recentAchievements.map((achievement, index) => <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center">
-                  <div className="text-2xl mr-3">{achievement.icon}</div>
-                  <div>
-                    <div className="font-medium text-gray-800">{achievement.name}</div>
-                    <div className="text-sm text-gray-500">{achievement.description}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-yellow-600 font-medium">+{achievement.points}</div>
-                  <div className="text-xs text-gray-400">{achievement.time}</div>
-                </div>
-              </div>)}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Trophy className="w-6 h-6 text-yellow-600" />
+              </div>
+              <p className="text-xs text-gray-600">初学者</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Star className="w-6 h-6 text-blue-600" />
+              </div>
+              <p className="text-xs text-gray-600">知识达人</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <p className="text-xs text-gray-600">任务大师</p>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* 底部导航栏 */}
+      <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>;
 }

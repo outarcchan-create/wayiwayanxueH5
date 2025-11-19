@@ -47,7 +47,7 @@ export default function PhotoTaskPage(props) {
       const taskResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_task',
+          dataSourceName: 'wywh5_task',
           methodName: 'get',
           params: {
             filter: {
@@ -60,7 +60,7 @@ export default function PhotoTaskPage(props) {
       const userTaskResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'get',
           params: {
             filter: {
@@ -88,7 +88,7 @@ export default function PhotoTaskPage(props) {
         const createResult = await $w.cloud.callFunction({
           name: 'callDataSource',
           data: {
-            dataSourceName: 'wyw_user_task',
+            dataSourceName: 'wywh5_user_task',
             methodName: 'create',
             data: {
               user_id: userId,
@@ -192,7 +192,7 @@ export default function PhotoTaskPage(props) {
         const result = await $w.cloud.callFunction({
           name: 'callDataSource',
           data: {
-            dataSourceName: 'wyw_user_task',
+            dataSourceName: 'wywh5_user_task',
             methodName: 'update',
             params: {
               filter: {
@@ -250,7 +250,7 @@ export default function PhotoTaskPage(props) {
       await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'update',
           params: {
             filter: {
@@ -301,7 +301,7 @@ export default function PhotoTaskPage(props) {
       await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'update',
           params: {
             filter: {

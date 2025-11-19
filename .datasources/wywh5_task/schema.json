@@ -1,0 +1,73 @@
+
+{
+  "name": "wywh5_task",
+  "title": "任务表",
+  "schemas": [
+    {
+      "name": "task_id",
+      "title": "任务ID",
+      "type": "String"
+    },
+    {
+      "name": "activity_id",
+      "title": "所属活动ID",
+      "type": "String"
+    },
+    {
+      "name": "task_name",
+      "title": "任务名称",
+      "type": "String"
+    },
+    {
+      "name": "task_desc",
+      "title": "任务描述",
+      "type": "MultiLineString"
+    },
+    {
+      "name": "task_type",
+      "title": "任务类型",
+      "type": "String"
+    },
+    {
+      "name": "points",
+      "title": "奖励积分",
+      "type": "Number"
+    },
+    {
+      "name": "time_limit",
+      "title": "时间限制(秒)",
+      "type": "Number"
+    },
+    {
+      "name": "location_name",
+      "title": "地点名称",
+      "type": "String"
+    },
+    {
+      "name": "target_description",
+      "title": "目标描述",
+      "type": "MultiLineString"
+    },
+    {
+      "name": "photo_example",
+      "title": "示例图片",
+      "type": "Image"
+    },
+    {
+      "name": "task_order",
+      "title": "任务顺序",
+      "type": "Number"
+    },
+    {
+      "name": "is_required",
+      "title": "是否必做",
+      "type": "Boolean"
+    },
+    {
+      "name": "status",
+      "title": "任务状态",
+      "type": "String"
+    }
+  ]
+}
+  

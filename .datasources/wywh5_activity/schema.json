@@ -1,0 +1,103 @@
+
+{
+  "name": "wywh5_activity",
+  "title": "活动数据表",
+  "schemas": [
+    {
+      "name": "activity_id",
+      "title": "活动ID",
+      "type": "String"
+    },
+    {
+      "name": "name",
+      "title": "活动名称",
+      "type": "String"
+    },
+    {
+      "name": "desc",
+      "title": "活动描述",
+      "type": "MultiLineString"
+    },
+    {
+      "name": "cover_img",
+      "title": "封面图片",
+      "type": "Image"
+    },
+    {
+      "name": "activity_map_img",
+      "title": "活动地图图片",
+      "type": "Image"
+    },
+    {
+      "name": "unlock_type",
+      "title": "解锁类型",
+      "type": "String"
+    },
+    {
+      "name": "status",
+      "title": "活动状态",
+      "type": "String"
+    },
+    {
+      "name": "start_time",
+      "title": "开始时间",
+      "type": "DateTime",
+      "format": "timestamp-s"
+    },
+    {
+      "name": "end_time",
+      "title": "结束时间",
+      "type": "DateTime",
+      "format": "timestamp-s"
+    },
+    {
+      "name": "creator_id",
+      "title": "创建者ID",
+      "type": "String"
+    },
+    {
+      "name": "tags",
+      "title": "活动标签",
+      "type": "Array",
+      "items": {
+        "type": "String"
+      }
+    },
+    {
+      "name": "difficulty",
+      "title": "难度等级",
+      "type": "String"
+    },
+    {
+      "name": "duration",
+      "title": "活动时长",
+      "type": "String"
+    },
+    {
+      "name": "participants",
+      "title": "参与人数",
+      "type": "Number"
+    },
+    {
+      "name": "rating",
+      "title": "活动评分",
+      "type": "Number"
+    },
+    {
+      "name": "sort_order",
+      "title": "排序权重",
+      "type": "Number"
+    },
+    {
+      "name": "is_hot",
+      "title": "是否热门",
+      "type": "Boolean"
+    },
+    {
+      "name": "is_featured",
+      "title": "是否精选",
+      "type": "Boolean"
+    }
+  ]
+}
+  

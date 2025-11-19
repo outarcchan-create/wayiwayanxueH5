@@ -55,7 +55,7 @@ export default function ProfilePage(props) {
       const userActivityResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_activity',
+          dataSourceName: 'wywh5_user_activity',
           methodName: 'list',
           params: {
             filter: {
@@ -69,7 +69,7 @@ export default function ProfilePage(props) {
       const userTaskResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'list',
           params: {
             filter: {
@@ -83,7 +83,7 @@ export default function ProfilePage(props) {
       const taskResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_task',
+          dataSourceName: 'wywh5_task',
           methodName: 'list',
           params: {
             limit: 100

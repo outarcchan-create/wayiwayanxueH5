@@ -55,7 +55,7 @@ export default function QuizTaskPage(props) {
       const taskResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_task',
+          dataSourceName: 'wywh5_task',
           methodName: 'get',
           params: {
             filter: {
@@ -68,7 +68,7 @@ export default function QuizTaskPage(props) {
       const questionResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_question',
+          dataSourceName: 'wywh5_question',
           methodName: 'list',
           params: {
             filter: {
@@ -84,7 +84,7 @@ export default function QuizTaskPage(props) {
       const userTaskResult = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'get',
           params: {
             filter: {
@@ -120,7 +120,7 @@ export default function QuizTaskPage(props) {
         const createResult = await $w.cloud.callFunction({
           name: 'callDataSource',
           data: {
-            dataSourceName: 'wyw_user_task',
+            dataSourceName: 'wywh5_user_task',
             methodName: 'create',
             data: {
               user_id: userId,
@@ -204,7 +204,7 @@ export default function QuizTaskPage(props) {
       await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'update',
           params: {
             filter: {
@@ -278,7 +278,7 @@ export default function QuizTaskPage(props) {
       const result = await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'update',
           params: {
             filter: {
@@ -321,7 +321,7 @@ export default function QuizTaskPage(props) {
       await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'update',
           params: {
             filter: {
@@ -376,7 +376,7 @@ export default function QuizTaskPage(props) {
       await $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
-          dataSourceName: 'wyw_user_task',
+          dataSourceName: 'wywh5_user_task',
           methodName: 'update',
           params: {
             filter: {

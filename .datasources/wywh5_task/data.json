@@ -1,0 +1,79 @@
+
+[
+  {
+    "task_id": "task_001",
+    "activity_id": "activity_001",
+    "task_name": "青铜器知识问答",
+    "task_desc": "测试你对青铜器历史和文化的了解，通过答题学习更多知识",
+    "task_type": "quiz",
+    "points": 100,
+    "time_limit": 300,
+    "location_name": null,
+    "target_description": null,
+    "photo_example": null,
+    "task_order": 1,
+    "is_required": true,
+    "status": "published"
+  },
+  {
+    "task_id": "task_002",
+    "activity_id": "activity_001",
+    "task_name": "寻找镇馆之宝",
+    "task_desc": "找到并拍摄博物馆的镇馆之宝 - 四羊方尊",
+    "task_type": "photo",
+    "points": 150,
+    "time_limit": 600,
+    "location_name": "中央大厅",
+    "target_description": "四羊方尊是中国商代晚期青铜礼器，是现存商代青铜方尊中最大的一件",
+    "photo_example": "https://picsum.photos/seed/bronze-vessel/300/200.jpg",
+    "task_order": 2,
+    "is_required": true,
+    "status": "published"
+  },
+  {
+    "task_id": "task_003",
+    "activity_id": "activity_002",
+    "task_name": "陶瓷知识测试",
+    "task_desc": "测试你对陶瓷艺术和历史的了解程度",
+    "task_type": "quiz",
+    "points": 80,
+    "time_limit": 240,
+    "location_name": null,
+    "target_description": null,
+    "photo_example": null,
+    "task_order": 1,
+    "is_required": false,
+    "status": "published"
+  },
+  {
+    "task_id": "task_004",
+    "activity_id": "activity_002",
+    "task_name": "拍摄精美瓷器",
+    "task_desc": "寻找并拍摄你认为最精美的陶瓷展品",
+    "task_type": "photo",
+    "points": 120,
+    "time_limit": 480,
+    "location_name": "陶瓷展厅",
+    "target_description": "寻找具有代表性的陶瓷作品，注意拍摄角度和光线",
+    "photo_example": "https://picsum.photos/seed/ceramic-example/300/200.jpg",
+    "task_order": 2,
+    "is_required": false,
+    "status": "published"
+  },
+  {
+    "task_id": "task_005",
+    "activity_id": "activity_003",
+    "task_name": "甲骨文识别挑战",
+    "task_desc": "识别甲骨文文字，了解古代文字的演变",
+    "task_type": "quiz",
+    "points": 120,
+    "time_limit": 360,
+    "location_name": null,
+    "target_description": null,
+    "photo_example": null,
+    "task_order": 1,
+    "is_required": true,
+    "status": "published"
+  }
+]
+  
