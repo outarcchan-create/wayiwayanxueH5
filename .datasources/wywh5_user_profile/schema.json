@@ -1,0 +1,141 @@
+
+{
+  "name": "wywh5_user_profile",
+  "title": "用户个人资料表",
+  "schemas": [
+    {
+      "name": "user_id",
+      "title": "用户ID",
+      "type": "String"
+    },
+    {
+      "name": "nick_name",
+      "title": "昵称",
+      "type": "String"
+    },
+    {
+      "name": "real_name",
+      "title": "真实姓名",
+      "type": "String"
+    },
+    {
+      "name": "avatar_url",
+      "title": "头像URL",
+      "type": "Image"
+    },
+    {
+      "name": "gender",
+      "title": "性别",
+      "type": "String"
+    },
+    {
+      "name": "birthday",
+      "title": "生日",
+      "type": "Date",
+      "format": "date"
+    },
+    {
+      "name": "bio",
+      "title": "个人简介",
+      "type": "MultiLineString"
+    },
+    {
+      "name": "email",
+      "title": "邮箱地址",
+      "type": "Email"
+    },
+    {
+      "name": "phone",
+      "title": "手机号码",
+      "type": "String"
+    },
+    {
+      "name": "location",
+      "title": "所在地",
+      "type": "String"
+    },
+    {
+      "name": "total_points",
+      "title": "总积分",
+      "type": "Number"
+    },
+    {
+      "name": "level",
+      "title": "用户等级",
+      "type": "Number"
+    },
+    {
+      "name": "achievements_count",
+      "title": "成就数量",
+      "type": "Number"
+    },
+    {
+      "name": "activities_count",
+      "title": "参与活动数量",
+      "type": "Number"
+    },
+    {
+      "name": "completed_activities_count",
+      "title": "完成活动数量",
+      "type": "Number"
+    },
+    {
+      "name": "tasks_count",
+      "title": "任务数量",
+      "type": "Number"
+    },
+    {
+      "name": "completed_tasks_count",
+      "title": "完成任务数量",
+      "type": "Number"
+    },
+    {
+      "name": "average_score",
+      "title": "平均得分",
+      "type": "Number"
+    },
+    {
+      "name": "total_time_spent",
+      "title": "总用时(秒)",
+      "type": "Number"
+    },
+    {
+      "name": "is_verified",
+      "title": "是否认证",
+      "type": "Boolean"
+    },
+    {
+      "name": "privacy_settings",
+      "title": "隐私设置",
+      "type": "Object"
+    },
+    {
+      "name": "notification_settings",
+      "title": "通知设置",
+      "type": "Object"
+    },
+    {
+      "name": "language_preference",
+      "title": "语言偏好",
+      "type": "String"
+    },
+    {
+      "name": "theme_preference",
+      "title": "主题偏好",
+      "type": "String"
+    },
+    {
+      "name": "last_login_time",
+      "title": "最后登录时间",
+      "type": "DateTime",
+      "format": "timestamp-s"
+    },
+    {
+      "name": "registration_time",
+      "title": "注册时间",
+      "type": "DateTime",
+      "format": "timestamp-s"
+    }
+  ]
+}
+  

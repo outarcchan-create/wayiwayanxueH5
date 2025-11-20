@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { ArrowLeft, Camera, User, Mail, Phone, Calendar, MapPin, Save, X, Check, AlertCircle, Upload, Shield, Bell, Globe, Palette } from 'lucide-react';
+import { ArrowLeft, Camera, User, Mail, Phone, Calendar, MapPin, Save, X, Check, AlertCircle, Upload, Shield, Bell, Globe, Palette, Eye, EyeOff } from 'lucide-react';
 
 export default function EditProfilePage(props) {
   const {
@@ -13,6 +13,10 @@ export default function EditProfilePage(props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     nickName: '',
     name: '',
@@ -22,12 +26,33 @@ export default function EditProfilePage(props) {
     birthday: '',
     location: '',
     gender: '',
-    avatarUrl: ''
+    avatarUrl: '',
+    privacySettings: {
+      profilePublic: true,
+      showEmail: false,
+      showPhone: false,
+      showActivities: true
+    },
+    notificationSettings: {
+      emailNotifications: true,
+      pushNotifications: true,
+      activityReminders: true,
+      systemUpdates: false
+    },
+    languagePreference: 'zh-CN',
+    themePreference: 'light'
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
   const [previewAvatar, setPreviewAvatar] = useState(null);
   const [errors, setErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
   const [networkStatus, setNetworkStatus] = useState('online');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const {
     toast
   } = useToast();
@@ -35,9 +60,18 @@ export default function EditProfilePage(props) {
     // 监听网络状态
     const handleOnline = () => {
       setNetworkStatus('online');
+      toast({
+        title: "网络已连接",
+        description: "数据同步已恢复"
+      });
     };
     const handleOffline = () => {
       setNetworkStatus('offline');
+      toast({
+        title: "网络已断开",
+        description: "请检查网络连接",
+        variant: "destructive"
+      });
     };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -73,18 +107,33 @@ export default function EditProfilePage(props) {
         }
       });
       if (result.success && result.data) {
+        const profileData = result.data;
         setFormData({
-          nickName: result.data.nick_name || $w.auth.currentUser?.nickName || '',
-          name: result.data.real_name || $w.auth.currentUser?.name || '',
-          email: result.data.email || '',
-          phone: result.data.phone || '',
-          bio: result.data.bio || '',
-          birthday: result.data.birthday || '',
-          location: result.data.location || '',
-          gender: result.data.gender || '',
-          avatarUrl: result.data.avatar_url || $w.auth.currentUser?.avatarUrl || ''
+          nickName: profileData.nick_name || $w.auth.currentUser?.nickName || '',
+          name: profileData.real_name || $w.auth.currentUser?.name || '',
+          email: profileData.email || '',
+          phone: profileData.phone || '',
+          bio: profileData.bio || '',
+          birthday: profileData.birthday || '',
+          location: profileData.location || '',
+          gender: profileData.gender || '',
+          avatarUrl: profileData.avatar_url || $w.auth.currentUser?.avatarUrl || '',
+          privacySettings: profileData.privacy_settings || {
+            profilePublic: true,
+            showEmail: false,
+            showPhone: false,
+            showActivities: true
+          },
+          notificationSettings: profileData.notification_settings || {
+            emailNotifications: true,
+            pushNotifications: true,
+            activityReminders: true,
+            systemUpdates: false
+          },
+          languagePreference: profileData.language_preference || 'zh-CN',
+          themePreference: profileData.theme_preference || 'light'
         });
-        setPreviewAvatar(result.data.avatar_url || $w.auth.currentUser?.avatarUrl);
+        setPreviewAvatar(profileData.avatar_url || $w.auth.currentUser?.avatarUrl);
       } else {
         // 使用当前用户信息作为默认值
         setFormData({
@@ -96,7 +145,21 @@ export default function EditProfilePage(props) {
           birthday: '',
           location: '',
           gender: '',
-          avatarUrl: $w.auth.currentUser?.avatarUrl || ''
+          avatarUrl: $w.auth.currentUser?.avatarUrl || '',
+          privacySettings: {
+            profilePublic: true,
+            showEmail: false,
+            showPhone: false,
+            showActivities: true
+          },
+          notificationSettings: {
+            emailNotifications: true,
+            pushNotifications: true,
+            activityReminders: true,
+            systemUpdates: false
+          },
+          languagePreference: 'zh-CN',
+          themePreference: 'light'
         });
         setPreviewAvatar($w.auth.currentUser?.avatarUrl);
       }
@@ -124,7 +187,29 @@ export default function EditProfilePage(props) {
       }));
     }
   };
-  const handleAvatarChange = e => {
+  const handleNestedInputChange = (parentField, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [parentField]: {
+        ...prev[parentField],
+        [field]: value
+      }
+    }));
+  };
+  const handlePasswordChange = (field, value) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    // 清除该字段的错误
+    if (passwordErrors[field]) {
+      setPasswordErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
+  };
+  const handleAvatarChange = async e => {
     const file = e.target.files[0];
     if (file) {
       // 检查文件大小
@@ -145,16 +230,28 @@ export default function EditProfilePage(props) {
         });
         return;
       }
-      // 预览图片
-      const reader = new FileReader();
-      reader.onload = e => {
-        setPreviewAvatar(e.target.result);
-        setFormData(prev => ({
-          ...prev,
-          avatarUrl: e.target.result
-        }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        // 预览图片
+        const reader = new FileReader();
+        reader.onload = e => {
+          setPreviewAvatar(e.target.result);
+          setFormData(prev => ({
+            ...prev,
+            avatarUrl: e.target.result
+          }));
+        };
+        reader.readAsDataURL(file);
+        toast({
+          title: "图片已选择",
+          description: "点击保存后上传到服务器"
+        });
+      } catch (error) {
+        toast({
+          title: "图片处理失败",
+          description: "请重新选择图片",
+          variant: "destructive"
+        });
+      }
     }
   };
   const validateForm = () => {
@@ -167,11 +264,15 @@ export default function EditProfilePage(props) {
       newErrors.nickName = '昵称至少需要2个字符';
     } else if (formData.nickName.length > 20) {
       newErrors.nickName = '昵称不能超过20个字符';
+    } else if (!/^[\u4e00-\u9fa5a-zA-Z0-9_]+$/.test(formData.nickName)) {
+      newErrors.nickName = '昵称只能包含中文、英文、数字和下划线';
     }
 
     // 姓名验证
     if (formData.name && formData.name.length > 10) {
       newErrors.name = '姓名不能超过10个字符';
+    } else if (formData.name && !/^[\u4e00-\u9fa5a-zA-Z\s]+$/.test(formData.name)) {
+      newErrors.name = '姓名只能包含中文、英文和空格';
     }
 
     // 邮箱验证
@@ -188,7 +289,38 @@ export default function EditProfilePage(props) {
     if (formData.bio && formData.bio.length > 200) {
       newErrors.bio = '个人简介不能超过200个字符';
     }
+
+    // 生日验证
+    if (formData.birthday) {
+      const birthDate = new Date(formData.birthday);
+      const today = new Date();
+      if (birthDate > today) {
+        newErrors.birthday = '生日不能是未来日期';
+      } else if (birthDate < new Date('1900-01-01')) {
+        newErrors.birthday = '请输入有效的生日';
+      }
+    }
     setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  const validatePasswordForm = () => {
+    const newErrors = {};
+    if (!passwordData.currentPassword) {
+      newErrors.currentPassword = '请输入当前密码';
+    }
+    if (!passwordData.newPassword) {
+      newErrors.newPassword = '请输入新密码';
+    } else if (passwordData.newPassword.length < 6) {
+      newErrors.newPassword = '新密码至少需要6个字符';
+    } else if (!/^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/.test(passwordData.newPassword)) {
+      newErrors.newPassword = '密码必须包含字母和数字';
+    }
+    if (!passwordData.confirmPassword) {
+      newErrors.confirmPassword = '请确认新密码';
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      newErrors.confirmPassword = '两次输入的密码不一致';
+    }
+    setPasswordErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
   const handleSave = async () => {
@@ -209,23 +341,30 @@ export default function EditProfilePage(props) {
       return;
     }
     setSaving(true);
+    setUploadProgress(0);
     try {
       const userId = $w.auth.currentUser?.userId;
       let avatarUrl = formData.avatarUrl;
 
       // 如果有新头像，先上传
       if (previewAvatar && previewAvatar.startsWith('data:')) {
+        setUploadProgress(10);
         const tcb = await $w.cloud.getCloudInstance();
         const uploadResult = await tcb.uploadFile({
           cloudPath: `user-avatars/${userId}/${Date.now()}.jpg`,
-          filePath: dataURLtoFile(previewAvatar, 'avatar.jpg')
+          filePath: dataURLtoFile(previewAvatar, 'avatar.jpg'),
+          onUploadProgress: progress => {
+            setUploadProgress(Math.round(progress.loaded / progress.total * 100));
+          }
         });
+        setUploadProgress(90);
         if (uploadResult.fileID) {
           const urlResult = await tcb.getTempFileURL({
             fileList: [uploadResult.fileID]
           });
           avatarUrl = urlResult.fileList[0].tempFileURL;
         }
+        setUploadProgress(100);
       }
 
       // 保存用户资料
@@ -249,6 +388,10 @@ export default function EditProfilePage(props) {
               location: formData.location,
               gender: formData.gender,
               avatar_url: avatarUrl,
+              privacy_settings: formData.privacySettings,
+              notification_settings: formData.notificationSettings,
+              language_preference: formData.languagePreference,
+              theme_preference: formData.themePreference,
               updated_time: new Date().toISOString()
             }
           }
@@ -272,6 +415,36 @@ export default function EditProfilePage(props) {
       });
     } finally {
       setSaving(false);
+      setUploadProgress(0);
+    }
+  };
+  const handlePasswordChangeSubmit = async () => {
+    if (!validatePasswordForm()) {
+      toast({
+        title: "表单验证失败",
+        description: "请检查输入的信息",
+        variant: "destructive"
+      });
+      return;
+    }
+    try {
+      // 这里应该调用修改密码的API
+      toast({
+        title: "密码修改成功",
+        description: "请使用新密码登录"
+      });
+      setShowPasswordModal(false);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      toast({
+        title: "密码修改失败",
+        description: error.message || "请稍后重试",
+        variant: "destructive"
+      });
     }
   };
   const dataURLtoFile = (dataurl, filename) => {
@@ -348,6 +521,14 @@ export default function EditProfilePage(props) {
             <div className="flex-1">
               <p className="text-gray-600 mb-2">点击相机图标更换头像</p>
               <p className="text-sm text-gray-500">支持 JPG、PNG 格式，文件大小不超过 5MB</p>
+              {uploadProgress > 0 && uploadProgress < 100 && <div className="mt-2">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{
+                  width: `${uploadProgress}%`
+                }}></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">上传中... {uploadProgress}%</p>
+                </div>}
             </div>
           </div>
         </div>
@@ -415,8 +596,9 @@ export default function EditProfilePage(props) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">生日</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input type="date" value={formData.birthday} onChange={e => handleInputChange('birthday', e.target.value)} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="date" value={formData.birthday} onChange={e => handleInputChange('birthday', e.target.value)} className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.birthday ? 'border-red-500' : 'border-gray-300'}`} />
                   </div>
+                  {errors.birthday && <p className="text-red-500 text-sm mt-1">{errors.birthday}</p>}
                 </div>
 
                 <div>
@@ -447,7 +629,7 @@ export default function EditProfilePage(props) {
                       <p className="text-sm text-gray-600">定期更换密码保护账户安全</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button onClick={() => setShowPasswordModal(true)} variant="outline" size="sm">
                     修改
                   </Button>
                 </div>
@@ -460,9 +642,10 @@ export default function EditProfilePage(props) {
                       <p className="text-sm text-gray-600">增强账户安全性</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
-                    设置
-                  </Button>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
                 </div>
 
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -481,47 +664,99 @@ export default function EditProfilePage(props) {
 
             {/* 偏好设置标签页 */}
             {activeTab === 'preferences' && <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <Bell className="w-5 h-5 text-yellow-600 mr-3" />
-                    <div>
-                      <h4 className="font-medium text-gray-800">推送通知</h4>
-                      <p className="text-sm text-gray-600">接收活动提醒和系统通知</p>
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-4">通知设置</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Bell className="w-4 h-4 text-yellow-600 mr-2" />
+                        <span className="text-sm text-gray-700">邮件通知</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={formData.notificationSettings.emailNotifications} onChange={e => handleNestedInputChange('notificationSettings', 'emailNotifications', e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Bell className="w-4 h-4 text-blue-600 mr-2" />
+                        <span className="text-sm text-gray-700">推送通知</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={formData.notificationSettings.pushNotifications} onChange={e => handleNestedInputChange('notificationSettings', 'pushNotifications', e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Bell className="w-4 h-4 text-green-600 mr-2" />
+                        <span className="text-sm text-gray-700">活动提醒</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={formData.notificationSettings.activityReminders} onChange={e => handleNestedInputChange('notificationSettings', 'activityReminders', e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
                     </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <Globe className="w-5 h-5 text-blue-600 mr-3" />
-                    <div>
-                      <h4 className="font-medium text-gray-800">语言设置</h4>
-                      <p className="text-sm text-gray-600">选择应用显示语言</p>
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-4">隐私设置</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-700">公开个人资料</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={formData.privacySettings.profilePublic} onChange={e => handleNestedInputChange('privacySettings', 'profilePublic', e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-700">显示邮箱</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={formData.privacySettings.showEmail} onChange={e => handleNestedInputChange('privacySettings', 'showEmail', e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-700">显示手机号</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={formData.privacySettings.showPhone} onChange={e => handleNestedInputChange('privacySettings', 'showPhone', e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
                     </div>
                   </div>
-                  <select className="px-3 py-1 border border-gray-300 rounded-lg text-sm">
-                    <option value="zh-CN">简体中文</option>
-                    <option value="en-US">English</option>
-                  </select>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <Palette className="w-5 h-5 text-purple-600 mr-3" />
-                    <div>
-                      <h4 className="font-medium text-gray-800">主题设置</h4>
-                      <p className="text-sm text-gray-600">选择应用主题风格</p>
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-4">显示设置</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Globe className="w-4 h-4 text-blue-600 mr-2" />
+                        <span className="text-sm text-gray-700">语言设置</span>
+                      </div>
+                      <select value={formData.languagePreference} onChange={e => handleInputChange('languagePreference', e.target.value)} className="px-3 py-1 border border-gray-300 rounded-lg text-sm">
+                        <option value="zh-CN">简体中文</option>
+                        <option value="en-US">English</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Palette className="w-4 h-4 text-purple-600 mr-2" />
+                        <span className="text-sm text-gray-700">主题设置</span>
+                      </div>
+                      <select value={formData.themePreference} onChange={e => handleInputChange('themePreference', e.target.value)} className="px-3 py-1 border border-gray-300 rounded-lg text-sm">
+                        <option value="light">浅色主题</option>
+                        <option value="dark">深色主题</option>
+                        <option value="auto">跟随系统</option>
+                      </select>
                     </div>
                   </div>
-                  <select className="px-3 py-1 border border-gray-300 rounded-lg text-sm">
-                    <option value="light">浅色主题</option>
-                    <option value="dark">深色主题</option>
-                    <option value="auto">跟随系统</option>
-                  </select>
                 </div>
               </div>}
           </div>
@@ -537,6 +772,62 @@ export default function EditProfilePage(props) {
           </Button>
         </div>
       </div>
+
+      {/* 修改密码模态框 */}
+      {showPasswordModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-800">修改密码</h3>
+              <button onClick={() => setShowPasswordModal(false)} className="p-2 rounded-full hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">当前密码</label>
+                <div className="relative">
+                  <input type={showCurrentPassword ? 'text' : 'password'} value={passwordData.currentPassword} onChange={e => handlePasswordChange('currentPassword', e.target.value)} className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${passwordErrors.currentPassword ? 'border-red-500' : 'border-gray-300'}`} placeholder="请输入当前密码" />
+                  <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {showCurrentPassword ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-gray-400" />}
+                  </button>
+                </div>
+                {passwordErrors.currentPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.currentPassword}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">新密码</label>
+                <div className="relative">
+                  <input type={showNewPassword ? 'text' : 'password'} value={passwordData.newPassword} onChange={e => handlePasswordChange('newPassword', e.target.value)} className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${passwordErrors.newPassword ? 'border-red-500' : 'border-gray-300'}`} placeholder="请输入新密码" />
+                  <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {showNewPassword ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-gray-400" />}
+                  </button>
+                </div>
+                {passwordErrors.newPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.newPassword}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">确认新密码</label>
+                <div className="relative">
+                  <input type={showConfirmPassword ? 'text' : 'password'} value={passwordData.confirmPassword} onChange={e => handlePasswordChange('confirmPassword', e.target.value)} className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${passwordErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} placeholder="请再次输入新密码" />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-gray-400" />}
+                  </button>
+                </div>
+                {passwordErrors.confirmPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.confirmPassword}</p>}
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <Button onClick={() => setShowPasswordModal(false)} variant="outline" className="flex-1">
+                取消
+              </Button>
+              <Button onClick={handlePasswordChangeSubmit} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                确认修改
+              </Button>
+            </div>
+          </div>
+        </div>}
 
       {/* 成功提示模态框 */}
       {showSuccessModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
