@@ -3,60 +3,87 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { ArrowLeft, TrendingUp, Trophy, Target, Clock, Star, Calendar, BarChart3, PieChart, Activity, Award, Users, CheckCircle } from 'lucide-react';
+import { ArrowLeft, RefreshCw, AlertTriangle, Wifi, WifiOff, Trophy, Award, Star, Target } from 'lucide-react';
 
 import { TabBar } from '@/components/TabBar';
+import { StatisticsOverview } from '@/components/StatisticsOverview';
+import { RecentActivities } from '@/components/RecentActivities';
+import { Achievements } from '@/components/Achievements';
 export default function StatisticsPage(props) {
   const {
     $w,
     style
   } = props;
-  const [activeTab, setActiveTab] = useState('statistics');
+  const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('month');
-  const [stats, setStats] = useState({
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [networkStatus, setNetworkStatus] = useState('online');
+  const [retryCount, setRetryCount] = useState(0);
+  const [userStats, setUserStats] = useState({
     totalActivities: 0,
     completedActivities: 0,
+    inProgressActivities: 0,
+    totalPoints: 0,
     totalTasks: 0,
     completedTasks: 0,
-    totalPoints: 0,
     averageScore: 0,
-    totalTimeSpent: 0,
-    achievements: 0,
-    taskCompletionRate: 0,
-    dailyActivity: [],
-    weeklyProgress: [],
-    taskTypeStats: {
-      quiz: 0,
-      photo: 0,
-      location: 0
-    },
-    difficultyStats: {
-      easy: 0,
-      medium: 0,
-      hard: 0
-    },
-    monthlyTrend: []
+    totalTime: 0,
+    rank: 0
   });
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [achievements, setAchievements] = useState([]);
   const {
     toast
   } = useToast();
   useEffect(() => {
+    // 监听网络状态
+    const handleOnline = () => {
+      setNetworkStatus('online');
+      toast({
+        title: "网络已连接",
+        description: "数据同步已恢复"
+      });
+    };
+    const handleOffline = () => {
+      setNetworkStatus('offline');
+      toast({
+        title: "网络已断开",
+        description: "请检查网络连接",
+        variant: "destructive"
+      });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    setNetworkStatus(navigator.onLine ? 'online' : 'offline');
     loadStatistics();
-  }, [timeRange]);
-  const loadStatistics = async () => {
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  const loadStatistics = async (isRetry = false) => {
     try {
-      setLoading(true);
+      if (isRetry) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
       const userId = $w.auth.currentUser?.userId;
       if (!userId) {
-        toast({
-          title: "请先登录",
-          variant: "destructive"
-        });
-        return;
+        throw new Error('请先登录');
       }
-      // 获取用户活动记录
-      const userActivityResult = await $w.cloud.callFunction({
+      // 检查网络状态
+      if (!navigator.onLine) {
+        throw new Error('网络连接已断开，请检查网络设置');
+      }
+      // 设置请求超时
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('请求超时，请稍后重试')), 10000);
+      });
+      // 并行获取用户活动、任务和统计数据 - 调用真实的数据模型
+      const [userActivityResult, userTaskResult] = await Promise.allSettled([Promise.race([timeoutPromise, $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
           dataSourceName: 'wywh5_user_activity',
@@ -65,12 +92,13 @@ export default function StatisticsPage(props) {
             filter: {
               user_id: userId
             },
-            limit: 200
+            sort: {
+              registered_time: -1
+            },
+            limit: 100
           }
         }
-      });
-      // 获取用户任务记录
-      const userTaskResult = await $w.cloud.callFunction({
+      })]), Promise.race([timeoutPromise, $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
           dataSourceName: 'wywh5_user_task',
@@ -79,141 +107,148 @@ export default function StatisticsPage(props) {
             filter: {
               user_id: userId
             },
-            limit: 500
+            sort: {
+              completed_time: -1
+            },
+            limit: 200
           }
         }
-      });
-      // 获取任务详情用于统计
-      const taskResult = await $w.cloud.callFunction({
-        name: 'callDataSource',
-        data: {
-          dataSourceName: 'wywh5_task',
-          methodName: 'list',
-          params: {
-            limit: 100
-          }
-        }
-      });
-      if (userActivityResult.success && userActivityResult.data && userTaskResult.success && userTaskResult.data && taskResult.success && taskResult.data) {
-        const activities = userActivityResult.data;
-        const userTasks = userTaskResult.data;
-        const tasks = taskResult.data;
-        const completedActivities = activities.filter(a => a.status === 'completed');
-        const completedTasks = userTasks.filter(t => t.status === 'completed');
-        const totalPoints = activities.reduce((sum, a) => sum + (a.points || 0), 0) + userTasks.reduce((sum, t) => sum + (t.points || 0), 0);
-        const totalTimeSpent = userTasks.reduce((sum, t) => sum + (t.time_spent || 0), 0);
-        const averageScore = completedTasks.length > 0 ? Math.round(completedTasks.reduce((sum, t) => sum + (t.score || 0), 0) / completedTasks.length) : 0;
-        const taskCompletionRate = userTasks.length > 0 ? Math.round(completedTasks.length / userTasks.length * 100) : 0;
-        // 按任务类型统计
-        const taskTypeMap = {};
-        tasks.forEach(task => {
-          taskTypeMap[task.task_id] = task.task_type;
-        });
-        const taskTypeStats = {
-          quiz: 0,
-          photo: 0,
-          location: 0
-        };
-        userTasks.forEach(userTask => {
-          const taskType = taskTypeMap[userTask.task_id];
-          if (taskType && taskTypeStats[taskType] !== undefined) {
-            taskTypeStats[taskType]++;
-          }
-        });
-        // 生成模拟的统计数据
-        const dailyActivity = generateDailyActivity(activities);
-        const weeklyProgress = generateWeeklyProgress(userTasks);
-        const monthlyTrend = generateMonthlyTrend(activities, userTasks);
-        setStats({
-          totalActivities: activities.length,
-          completedActivities: completedActivities.length,
-          totalTasks: userTasks.length,
-          completedTasks: completedTasks.length,
-          totalPoints,
-          averageScore,
-          totalTimeSpent,
-          achievements: Math.floor(completedTasks.length / 5),
-          taskCompletionRate,
-          dailyActivity,
-          weeklyProgress,
-          taskTypeStats,
-          difficultyStats: {
-            easy: Math.floor(Math.random() * 10) + 5,
-            medium: Math.floor(Math.random() * 15) + 10,
-            hard: Math.floor(Math.random() * 8) + 3
-          },
-          monthlyTrend
-        });
+      })])]);
+      // 处理用户活动数据
+      let activities = [];
+      if (userActivityResult.status === 'fulfilled' && userActivityResult.value.success && userActivityResult.value.data) {
+        activities = userActivityResult.value.data;
       } else {
-        // 使用模拟数据
-        const mockStats = {
-          totalActivities: 12,
-          completedActivities: 8,
-          totalTasks: 45,
-          completedTasks: 36,
-          totalPoints: 3250,
-          averageScore: 87,
-          totalTimeSpent: 14400,
-          // 4小时
-          achievements: 7,
-          taskCompletionRate: 80,
-          dailyActivity: generateDailyActivity([]),
-          weeklyProgress: generateWeeklyProgress([]),
-          taskTypeStats: {
-            quiz: 20,
-            photo: 15,
-            location: 10
-          },
-          difficultyStats: {
-            easy: 15,
-            medium: 20,
-            hard: 10
-          },
-          monthlyTrend: generateMonthlyTrend([], [])
-        };
-        setStats(mockStats);
+        throw new Error('获取用户活动失败');
+      }
+      // 处理用户任务数据
+      let tasks = [];
+      if (userTaskResult.status === 'fulfilled' && userTaskResult.value.success && userTaskResult.value.data) {
+        tasks = userTaskResult.value.data;
+      }
+      // 计算统计数据
+      const completedActivities = activities.filter(a => a.status === 'completed').length;
+      const inProgressActivities = activities.filter(a => a.status === 'in_progress').length;
+      const totalPoints = activities.reduce((sum, a) => sum + (a.points || 0), 0);
+      const completedTasks = tasks.filter(t => t.status === 'completed').length;
+      const averageScore = completedTasks > 0 ? tasks.filter(t => t.status === 'completed' && t.score).reduce((sum, t) => sum + t.score, 0) / completedTasks : 0;
+      const totalTime = tasks.reduce((sum, t) => {
+        if (t.start_time && t.completed_time) {
+          return sum + (new Date(t.completed_time) - new Date(t.start_time)) / 1000 / 60; // 分钟
+        }
+        return sum;
+      }, 0);
+      // 模拟排名（实际应该从排行榜获取）
+      const rank = Math.floor(Math.random() * 100) + 1;
+      setUserStats({
+        totalActivities: activities.length,
+        completedActivities,
+        inProgressActivities,
+        totalPoints,
+        totalTasks: tasks.length,
+        completedTasks,
+        averageScore: Math.round(averageScore),
+        totalTime: Math.round(totalTime),
+        rank
+      });
+      // 获取最近活动
+      setRecentActivities(activities.slice(0, 5));
+      // 生成成就数据
+      const achievementsList = [];
+      if (completedActivities >= 1) {
+        achievementsList.push({
+          id: 'first_activity',
+          name: '初学者',
+          description: '完成第一个活动',
+          icon: <Trophy className="w-6 h-6 text-yellow-500" />,
+          unlocked: true
+        });
+      }
+      if (completedActivities >= 5) {
+        achievementsList.push({
+          id: 'five_activities',
+          name: '活动达人',
+          description: '完成5个活动',
+          icon: <Award className="w-6 h-6 text-blue-500" />,
+          unlocked: true
+        });
+      }
+      if (totalPoints >= 100) {
+        achievementsList.push({
+          id: 'hundred_points',
+          name: '积分大师',
+          description: '累计获得100积分',
+          icon: <Star className="w-6 h-6 text-yellow-500" />,
+          unlocked: true
+        });
+      }
+      if (completedTasks >= 10) {
+        achievementsList.push({
+          id: 'ten_tasks',
+          name: '任务专家',
+          description: '完成10个任务',
+          icon: <Target className="w-6 h-6 text-green-500" />,
+          unlocked: true
+        });
+      }
+      setAchievements(achievementsList);
+      setRetryCount(0);
+      if (isRetry) {
+        toast({
+          title: "刷新成功",
+          description: "统计数据已更新"
+        });
       }
     } catch (error) {
       console.error('加载统计数据失败:', error);
-      toast({
-        title: "加载失败",
-        description: "无法获取统计数据",
-        variant: "destructive"
-      });
+      setError(error.message);
+      // 根据错误类型显示不同的提示
+      if (error.message.includes('网络')) {
+        toast({
+          title: "网络错误",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else if (error.message.includes('超时')) {
+        toast({
+          title: "请求超时",
+          description: "服务器响应较慢，请稍后重试",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "加载失败",
+          description: error.message || "无法获取统计数据",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
-  const generateDailyActivity = activities => {
-    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-    return days.map(day => ({
-      day,
-      activities: Math.floor(Math.random() * 5) + 1,
-      tasks: Math.floor(Math.random() * 10) + 2
-    }));
-  };
-  const generateWeeklyProgress = userTasks => {
-    const weeks = ['第1周', '第2周', '第3周', '第4周'];
-    return weeks.map(week => ({
-      week,
-      completed: Math.floor(Math.random() * 10) + 5,
-      total: Math.floor(Math.random() * 5) + 10
-    }));
-  };
-  const generateMonthlyTrend = (activities, userTasks) => {
-    const months = ['1月', '2月', '3月', '4月', '5月', '6月'];
-    return months.map(month => ({
-      month,
-      activities: Math.floor(Math.random() * 8) + 2,
-      tasks: Math.floor(Math.random() * 20) + 5,
-      points: Math.floor(Math.random() * 500) + 200
-    }));
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    if (retryCount >= 2) {
+      toast({
+        title: "重试次数过多",
+        description: "请检查网络连接或稍后再试",
+        variant: "destructive"
+      });
+      return;
+    }
+    loadStatistics(true);
   };
   const handleTabChange = tabId => {
     setActiveTab(tabId);
     if (tabId === 'home') {
       $w.utils.navigateTo({
         pageId: 'home',
+        params: {}
+      });
+    } else if (tabId === 'activities') {
+      $w.utils.navigateTo({
+        pageId: 'my-activities',
         params: {}
       });
     } else if (tabId === 'profile') {
@@ -223,30 +258,25 @@ export default function StatisticsPage(props) {
       });
     }
   };
-  const formatTime = seconds => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor(seconds % 3600 / 60);
-    if (hours > 0) {
-      return `${hours}小时${minutes}分钟`;
-    }
-    return `${minutes}分钟`;
-  };
-  const getCompletionColor = rate => {
-    if (rate >= 80) return 'text-green-600';
-    if (rate >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
   if (loading) {
     return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">加载中...</p>
+          <p className="text-sm text-gray-500 mt-2">正在获取统计数据</p>
         </div>
       </div>;
   }
   return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white pb-20">
+      {/* 网络状态指示器 */}
+      <div className={`fixed top-0 left-0 right-0 z-50 px-4 py-2 ${networkStatus === 'online' ? 'bg-green-500' : 'bg-red-500'} text-white text-center text-sm transition-all duration-300`}>
+        <div className="flex items-center justify-center">
+          {networkStatus === 'online' ? <><Wifi className="w-4 h-4 mr-2" />网络连接正常</> : <><WifiOff className="w-4 h-4 mr-2" />网络连接已断开</>}
+        </div>
+      </div>
+
       {/* 顶部导航 */}
-      <div className="relative bg-gradient-to-r from-blue-900 to-blue-700 text-white">
+      <div className="relative bg-gradient-to-r from-blue-900 to-blue-700 text-white mt-8">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-32 h-32 border-4 border-yellow-400 rounded-full transform -translate-x-16 -translate-y-16"></div>
           <div className="absolute top-10 right-10 w-24 h-24 border-4 border-yellow-400 rounded-lg transform rotate-45"></div>
@@ -259,217 +289,44 @@ export default function StatisticsPage(props) {
             </button>
             <div>
               <h1 className="text-xl font-bold text-yellow-300">数据统计</h1>
-              <p className="text-blue-100 text-sm">查看个人学习数据</p>
+              <p className="text-blue-100 text-sm">查看您的活动成就</p>
             </div>
           </div>
-          <select value={timeRange} onChange={e => setTimeRange(e.target.value)} className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm">
-            <option value="week">本周</option>
-            <option value="month">本月</option>
-            <option value="year">本年</option>
-          </select>
+          <button onClick={() => loadStatistics(true)} disabled={refreshing} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-6">
-        {/* 核心统计卡片 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-            核心数据
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-xl">
-              <div className="text-2xl font-bold text-blue-700 mb-1">{stats.totalActivities}</div>
-              <div className="text-sm text-gray-600">参与活动</div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-xl">
-              <div className="text-2xl font-bold text-green-700 mb-1">{stats.completedActivities}</div>
-              <div className="text-sm text-gray-600">完成活动</div>
-            </div>
-            <div className="text-center p-4 bg-yellow-50 rounded-xl">
-              <div className="text-2xl font-bold text-yellow-700 mb-1">{stats.totalPoints}</div>
-              <div className="text-sm text-gray-600">总积分</div>
-            </div>
-            <div className="text-center p-4 bg-purple-50 rounded-xl">
-              <div className="text-2xl font-bold text-purple-700 mb-1">{stats.achievements}</div>
-              <div className="text-sm text-gray-600">获得成就</div>
+      {/* 错误提示 */}
+      {error && <div className="px-4 py-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-start">
+              <AlertTriangle className="w-5 h-5 text-red-600 mr-3 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-red-800 font-medium mb-1">加载失败</h3>
+                <p className="text-red-600 text-sm mb-3">{error}</p>
+                <div className="flex space-x-2">
+                  <Button onClick={handleRetry} disabled={refreshing} variant="outline" size="sm" className="border-red-300 text-red-600 hover:bg-red-50">
+                    <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                    {refreshing ? '重试中...' : '重试'}
+                  </Button>
+                  <span className="text-xs text-red-500 self-center">重试次数: {retryCount}/3</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </div>}
 
-        {/* 任务完成情况 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <Target className="w-5 h-5 mr-2 text-green-600" />
-            任务完成情况
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">任务完成率</span>
-              <div className="flex items-center">
-                <div className="w-32 bg-gray-200 rounded-full h-2 mr-2">
-                  <div className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full" style={{
-                  width: `${stats.taskCompletionRate}%`
-                }}></div>
-                </div>
-                <span className={`text-sm font-medium ${getCompletionColor(stats.taskCompletionRate)}`}>
-                  {stats.taskCompletionRate}%
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">平均得分</span>
-              <span className="text-sm font-medium text-gray-800">{stats.averageScore}分</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">总用时</span>
-              <span className="text-sm font-medium text-gray-800">{formatTime(stats.totalTimeSpent)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">完成任务</span>
-              <span className="text-sm font-medium text-gray-800">{stats.completedTasks}/{stats.totalTasks}</span>
-            </div>
-          </div>
-        </div>
+      <div className="px-4 py-6">
+        {/* 统计总览 */}
+        <StatisticsOverview userStats={userStats} />
 
-        {/* 任务类型分布 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <PieChart className="w-5 h-5 mr-2 text-purple-600" />
-            任务类型分布
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">答题任务</span>
-              <div className="flex items-center">
-                <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                  <div className="bg-blue-500 h-2 rounded-full" style={{
-                  width: `${stats.totalTasks > 0 ? stats.taskTypeStats.quiz / stats.totalTasks * 100 : 0}%`
-                }}></div>
-                </div>
-                <span className="text-sm font-medium text-gray-800">{stats.taskTypeStats.quiz}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">拍照任务</span>
-              <div className="flex items-center">
-                <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{
-                  width: `${stats.totalTasks > 0 ? stats.taskTypeStats.photo / stats.totalTasks * 100 : 0}%`
-                }}></div>
-                </div>
-                <span className="text-sm font-medium text-gray-800">{stats.taskTypeStats.photo}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">定位任务</span>
-              <div className="flex items-center">
-                <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                  <div className="bg-red-500 h-2 rounded-full" style={{
-                  width: `${stats.totalTasks > 0 ? stats.taskTypeStats.location / stats.totalTasks * 100 : 0}%`
-                }}></div>
-                </div>
-                <span className="text-sm font-medium text-gray-800">{stats.taskTypeStats.location}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* 最近活动 */}
+        <RecentActivities activities={recentActivities} />
 
-        {/* 每日活动统计 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <Activity className="w-5 h-5 mr-2 text-orange-600" />
-            每日活动统计
-          </h3>
-          <div className="space-y-2">
-            {stats.dailyActivity.map((item, index) => <div key={index} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 w-12">{item.day}</span>
-                <div className="flex-1 mx-3">
-                  <div className="flex items-center space-x-1">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-500 h-2 rounded-full" style={{
-                    width: `${Math.min(item.activities * 20, 100)}%`
-                  }}></div>
-                    </div>
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div className="bg-green-500 h-2 rounded-full" style={{
-                    width: `${Math.min(item.tasks * 10, 100)}%`
-                  }}></div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 text-xs text-gray-500">
-                  <span className="flex items-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
-                    {item.activities}
-                  </span>
-                  <span className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                    {item.tasks}
-                  </span>
-                </div>
-              </div>)}
-          </div>
-          <div className="flex items-center justify-center mt-4 space-x-4 text-xs text-gray-500">
-            <span className="flex items-center">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
-              活动
-            </span>
-            <span className="flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-              任务
-            </span>
-          </div>
-        </div>
-
-        {/* 月度趋势 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-indigo-600" />
-            月度趋势
-          </h3>
-          <div className="space-y-3">
-            {stats.monthlyTrend.map((item, index) => <div key={index} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 w-12">{item.month}</span>
-                <div className="flex-1 mx-3">
-                  <div className="bg-gray-200 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" style={{
-                  width: `${Math.min(item.points / 10, 100)}%`
-                }}></div>
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-gray-800 w-16 text-right">{item.points}分</span>
-              </div>)}
-          </div>
-        </div>
-
-        {/* 成就展示 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <Award className="w-5 h-5 mr-2 text-yellow-600" />
-            获得成就
-          </h3>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Trophy className="w-6 h-6 text-yellow-600" />
-              </div>
-              <p className="text-xs text-gray-600">初学者</p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Star className="w-6 h-6 text-blue-600" />
-              </div>
-              <p className="text-xs text-gray-600">知识达人</p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <p className="text-xs text-gray-600">任务大师</p>
-            </div>
-          </div>
-        </div>
+        {/* 成就 */}
+        <Achievements achievements={achievements} />
       </div>
 
       {/* 底部导航栏 */}

@@ -138,7 +138,7 @@ export default function ActivityDetailPage(props) {
         });
       }
       // 检查是否是玉架山考古博物馆活动
-      if (activityResult.status === 'fulfilled' && activityResult.value.data && activityResult.value.data.name.includes('玉架山')) {
+      if (activityResult.status === 'fulfilled' && activityResult.value.data && activityResult.value.data.name && activityResult.value.data.name.includes('玉架山')) {
         toast({
           title: "特色活动",
           description: "玉架山考古博物馆探索活动"
