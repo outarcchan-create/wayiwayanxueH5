@@ -103,9 +103,14 @@ async function handleList(collection, params) {
     query = query.where(filter);
   }
 
-  // 应用排序
+  // 应用排序 - 修复排序语法
   if (Object.keys(sort).length > 0) {
-    query = query.orderBy(sort);
+    Object.keys(sort).forEach(field => {
+      const order = sort[field];
+      if (order === 1 || order === -1) {
+        query = query.orderBy(field, order === 1 ? 'asc' : 'desc');
+      }
+    });
   }
 
   // 应用分页

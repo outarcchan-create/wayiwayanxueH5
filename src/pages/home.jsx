@@ -107,7 +107,7 @@ export default function HomePage(props) {
           });
         }
         // 检查是否有玉架山考古博物馆活动
-        const yujiaActivity = result.data.find(activity => activity.name.includes('玉架山'));
+        const yujiaActivity = result.data.find(activity => activity.name && activity.name.includes('玉架山'));
         if (yujiaActivity) {
           toast({
             title: "发现特色活动",
@@ -203,7 +203,7 @@ export default function HomePage(props) {
 
     // 按搜索关键词筛选
     if (searchQuery) {
-      filtered = filtered.filter(activity => activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || activity.desc.toLowerCase().includes(searchQuery.toLowerCase()) || activity.tags && activity.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())));
+      filtered = filtered.filter(activity => activity.name && activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || activity.desc && activity.desc.toLowerCase().includes(searchQuery.toLowerCase()) || activity.tags && activity.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())));
     }
 
     // 排序 - 保持置顶活动在最前面
