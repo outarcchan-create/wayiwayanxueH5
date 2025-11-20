@@ -7,6 +7,7 @@ import STATISTICS from '../pages/statistics.jsx';
 import ACTIVITY_MAP from '../pages/activity-map.jsx';
 import QUIZ_TASK from '../pages/quiz-task.jsx';
 import PHOTO_TASK from '../pages/photo-task.jsx';
+import EDIT_PROFILE from '../pages/edit-profile.jsx';
 export const routers = [{
   id: "home",
   component: HOME
@@ -34,4 +35,7 @@ export const routers = [{
 }, {
   id: "photo-task",
   component: PHOTO_TASK
+}, {
+  id: "edit-profile",
+  component: EDIT_PROFILE
 }]
