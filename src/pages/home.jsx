@@ -1,3 +1,4 @@
+
 // @ts-ignore;
 import React, { useState, useEffect } from 'react';
 // @ts-ignore;
@@ -76,27 +77,13 @@ export default function HomePage(props) {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('请求超时，请稍后重试')), 10000);
       });
-      // 获取活动列表 - 调用真实的wywh5_activity数据模型
-      const result = await Promise.race([timeoutPromise, $w.cloud.callFunction({
-        name: 'callDataSource',
-        data: {
-          dataSourceName: 'wywh5_activity',
-          methodName: 'list',
-          params: {
-            filter: {
-              status: 'active'
-            },
-            sort: {
-              sort_order: -1,
-              // 置顶活动优先，然后按创建时间排序
-              is_pinned: -1,
-              created_time: -1
-            },
-            limit: 50
-          }
-        }
-      })]);
-      if (result.success && result.data) {
+      // 获取活动列表 - 使用原生云开发实例直接调用数据库
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+      const result = await Promise.race([timeoutPromise, db.collection('wywh5_activity').where({
+        status: 'active'
+      ).orderBy('sort_order', 'desc').orderBy('is_pinned', 'desc').orderBy('created_time', 'desc').limit(50).get()]);
+      if (result && result.data) {
         setActivities(result.data);
         setRetryCount(0);
         // 成功加载时的提示
@@ -115,7 +102,7 @@ export default function HomePage(props) {
           });
         }
       } else {
-        throw new Error(result.message || '获取活动列表失败');
+        throw new Error('获取活动列表失败');
       }
     } catch (error) {
       console.error('加载活动失败:', error);
@@ -152,21 +139,14 @@ export default function HomePage(props) {
       const userId = $w.auth.currentUser?.userId;
       if (!userId) return;
 
-      // 获取用户活动统计
-      const result = await $w.cloud.callFunction({
-        name: 'callDataSource',
-        data: {
-          dataSourceName: 'wywh5_user_activity',
-          methodName: 'list',
-          params: {
-            filter: {
-              user_id: userId
-            },
-            limit: 100
-          }
-        }
-      });
-      if (result.success && result.data) {
+      // 使用原生云开发实例获取用户活动统计
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+      const result = await db.collection('wywh5_user_activity').where({
+        user_id: userId
+      }).limit(100).get();
+      
+      if (result && result.data) {
         const activities = result.data;
         const completedActivities = activities.filter(a => a.status === 'completed').length;
         const totalPoints = activities.reduce((sum, a) => sum + (a.points || 0), 0);
