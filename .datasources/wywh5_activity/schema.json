@@ -97,6 +97,11 @@
       "name": "is_featured",
       "title": "是否精选",
       "type": "Boolean"
+    },
+    {
+      "name": "is_pinned",
+      "title": "是否置顶",
+      "type": "Boolean"
     }
   ]
 }

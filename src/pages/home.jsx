@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { Search, MapPin, Calendar, Star, Trophy, Users, Clock, Filter, ChevronRight, Compass, Camera, HelpCircle, Target, RefreshCw, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { Search, MapPin, Calendar, Star, Trophy, Users, Clock, Filter, ChevronRight, Compass, Camera, HelpCircle, Target, RefreshCw, AlertTriangle, Wifi, WifiOff, Flame, Crown, Pin } from 'lucide-react';
 
 import { TabBar } from '@/components/TabBar';
 export default function HomePage(props) {
@@ -21,7 +21,7 @@ export default function HomePage(props) {
   const [retryCount, setRetryCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortBy, setSortBy] = useState('popular');
+  const [sortBy, setSortBy] = useState('featured');
   const [userStats, setUserStats] = useState({
     totalActivities: 0,
     completedActivities: 0,
@@ -76,7 +76,7 @@ export default function HomePage(props) {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('请求超时，请稍后重试')), 10000);
       });
-      // 获取活动列表
+      // 获取活动列表 - 调用真实的wywh5_activity数据模型
       const result = await Promise.race([timeoutPromise, $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
@@ -86,7 +86,13 @@ export default function HomePage(props) {
             filter: {
               status: 'active'
             },
-            limit: 20
+            sort: {
+              sort_order: -1,
+              // 置顶活动优先，然后按创建时间排序
+              is_pinned: -1,
+              created_time: -1
+            },
+            limit: 50
           }
         }
       })]);
@@ -98,6 +104,14 @@ export default function HomePage(props) {
           toast({
             title: "刷新成功",
             description: `已加载 ${result.data.length} 个活动`
+          });
+        }
+        // 检查是否有玉架山考古博物馆活动
+        const yujiaActivity = result.data.find(activity => activity.name.includes('玉架山'));
+        if (yujiaActivity) {
+          toast({
+            title: "发现特色活动",
+            description: "玉架山考古博物馆探索活动已上线"
           });
         }
       } else {
@@ -126,49 +140,8 @@ export default function HomePage(props) {
           variant: "destructive"
         });
       }
-      // 使用模拟数据作为降级方案
-      const mockActivities = [{
-        activity_id: 'act-001',
-        name: '青铜器探秘之旅',
-        desc: '深入了解中国古代青铜器的历史文化和制作工艺，通过互动任务探索博物馆的珍贵藏品。',
-        cover_img: 'https://picsum.photos/seed/bronze-tour/400/300.jpg',
-        difficulty: 'medium',
-        duration: '90分钟',
-        participants: 156,
-        rating: 4.8,
-        tags: ['历史', '文化', '青铜器'],
-        status: 'active',
-        created_time: '2024-01-10T08:00:00Z'
-      }, {
-        activity_id: 'act-002',
-        name: '陶瓷艺术寻宝',
-        desc: '探索中国陶瓷艺术的发展历程和精美作品，完成寻宝任务赢取奖励。',
-        cover_img: 'https://picsum.photos/seed/ceramic-hunt/400/300.jpg',
-        difficulty: 'easy',
-        duration: '60分钟',
-        participants: 89,
-        rating: 4.6,
-        tags: ['艺术', '陶瓷', '寻宝'],
-        status: 'active',
-        created_time: '2024-01-12T10:00:00Z'
-      }, {
-        activity_id: 'act-003',
-        name: '古代文字解密',
-        desc: '学习古代文字的演变历程，破解历史密码，体验古代文化的魅力。',
-        cover_img: 'https://picsum.photos/seed/ancient-text/400/300.jpg',
-        difficulty: 'hard',
-        duration: '120分钟',
-        participants: 45,
-        rating: 4.9,
-        tags: ['文字', '历史', '解密'],
-        status: 'active',
-        created_time: '2024-01-15T14:00:00Z'
-      }];
-      setActivities(mockActivities);
-      toast({
-        title: "使用离线数据",
-        description: "当前显示的是示例数据"
-      });
+      // 不再使用模拟数据，直接显示错误状态
+      setActivities([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -233,9 +206,19 @@ export default function HomePage(props) {
       filtered = filtered.filter(activity => activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || activity.desc.toLowerCase().includes(searchQuery.toLowerCase()) || activity.tags && activity.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())));
     }
 
-    // 排序
+    // 排序 - 保持置顶活动在最前面
     filtered.sort((a, b) => {
+      // 首先按置顶状态排序
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+
+      // 然后按选择的排序方式排序
       switch (sortBy) {
+        case 'featured':
+          // 精选活动优先
+          if (a.is_featured && !b.is_featured) return -1;
+          if (!a.is_featured && b.is_featured) return 1;
+          return (b.sort_order || 0) - (a.sort_order || 0);
         case 'popular':
           return (b.participants || 0) - (a.participants || 0);
         case 'rating':
@@ -302,6 +285,7 @@ export default function HomePage(props) {
   const handleSortChange = sort => {
     setSortBy(sort);
     const sortText = {
+      featured: '精选推荐',
       popular: '最受欢迎',
       rating: '评分最高',
       newest: '最新发布',
@@ -336,7 +320,7 @@ export default function HomePage(props) {
         return '未知';
     }
   };
-  const categories = ['all', '历史', '文化', '艺术', '陶瓷', '青铜器', '文字', '解密', '寻宝'];
+  const categories = ['all', '历史', '文化', '艺术', '陶瓷', '青铜器', '文字', '解密', '寻宝', '考古'];
   if (loading) {
     return <div style={style} className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="text-center">
@@ -442,6 +426,7 @@ export default function HomePage(props) {
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">共 {filteredActivities.length} 个活动</span>
           <select value={sortBy} onChange={e => handleSortChange(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-1 focus:outline-none focus:border-blue-500">
+            <option value="featured">精选推荐</option>
             <option value="popular">最受欢迎</option>
             <option value="rating">评分最高</option>
             <option value="newest">最新发布</option>
@@ -452,7 +437,7 @@ export default function HomePage(props) {
 
       {/* 活动列表 */}
       <div className="px-4">
-        {filteredActivities.length === 0 ? <div className="text-center py-12">
+        {filteredActivities.length === 0 && !error ? <div className="text-center py-12">
             <Compass className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 mb-4">暂无相关活动</p>
             <button onClick={() => {
@@ -462,9 +447,25 @@ export default function HomePage(props) {
               清除筛选条件
             </button>
           </div> : <div className="space-y-4">
-            {filteredActivities.map((activity, index) => <div key={activity.activity_id || index} onClick={() => handleActivityClick(activity.activity_id)} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+            {filteredActivities.map((activity, index) => <div key={activity.activity_id || index} onClick={() => handleActivityClick(activity.activity_id)} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer relative">
+                {/* 活动状态标识 */}
+                <div className="absolute top-2 left-2 z-10 flex space-x-1">
+                  {activity.is_pinned && <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                      <Pin className="w-3 h-3 mr-1" />
+                      置顶
+                    </div>}
+                  {activity.is_featured && <div className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                      <Crown className="w-3 h-3 mr-1" />
+                      精选
+                    </div>}
+                  {activity.is_hot && <div className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                      <Flame className="w-3 h-3 mr-1" />
+                      热门
+                    </div>}
+                </div>
+                
                 <div className="relative">
-                  <img src={activity.cover_img} alt={activity.name} className="w-full h-48 object-cover" />
+                  <img src={activity.cover_img || 'https://picsum.photos/seed/activity-default/400/300.jpg'} alt={activity.name} className="w-full h-48 object-cover" />
                   <div className="absolute top-2 right-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(activity.difficulty)}`}>
                       {getDifficultyText(activity.difficulty)}
@@ -480,15 +481,15 @@ export default function HomePage(props) {
                     <div className="flex items-center space-x-3 text-xs text-gray-500">
                       <span className="flex items-center">
                         <Clock className="w-3 h-3 mr-1" />
-                        {activity.duration}
+                        {activity.duration || '60分钟'}
                       </span>
                       <span className="flex items-center">
                         <Users className="w-3 h-3 mr-1" />
-                        {activity.participants}
+                        {activity.participants || 0}
                       </span>
                       <span className="flex items-center">
                         <Star className="w-3 h-3 mr-1 text-yellow-500" />
-                        {activity.rating}
+                        {activity.rating || 0}
                       </span>
                     </div>
                   </div>

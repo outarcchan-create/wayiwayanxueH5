@@ -1,6 +1,27 @@
 
 [
   {
+    "activity_id": "activity_007",
+    "name": "玉架山考古博物馆探索",
+    "desc": "深入玉架山考古博物馆，探索新石器时代至青铜时代的文明遗迹。通过实地考察和互动任务，了解古代先民的生活方式、工艺技术和社会结构，感受中华文明的源远流长。",
+    "cover_img": "https://picsum.photos/seed/yujiashan-museum/400/300.jpg",
+    "activity_map_img": "https://picsum.photos/seed/yujiashan-map/800/450.jpg",
+    "unlock_type": "free",
+    "status": "published",
+    "start_time": 1704067200,
+    "end_time": 1735689599,
+    "creator_id": "admin",
+    "tags": ["考古发现", "新石器时代", "青铜时代", "文明探索"],
+    "difficulty": "中等",
+    "duration": "120分钟",
+    "participants": 2156,
+    "rating": 4.9,
+    "sort_order": 0,
+    "is_hot": true,
+    "is_featured": true,
+    "is_pinned": true
+  },
+  {
     "activity_id": "activity_001",
     "name": "青铜器探秘之旅",
     "desc": "探索古代青铜器的神秘世界，了解商周时期的礼器文化。通过互动任务和趣味问答，深入了解青铜器的历史背景、制作工艺和文化内涵。",
@@ -18,7 +39,8 @@
     "rating": 4.8,
     "sort_order": 1,
     "is_hot": true,
-    "is_featured": true
+    "is_featured": true,
+    "is_pinned": false
   },
   {
     "activity_id": "activity_002",
@@ -38,7 +60,8 @@
     "rating": 4.6,
     "sort_order": 2,
     "is_hot": true,
-    "is_featured": false
+    "is_featured": false,
+    "is_pinned": false
   },
   {
     "activity_id": "activity_003",
@@ -58,7 +81,8 @@
     "rating": 4.9,
     "sort_order": 3,
     "is_hot": false,
-    "is_featured": true
+    "is_featured": true,
+    "is_pinned": false
   },
   {
     "activity_id": "activity_004",
@@ -78,7 +102,8 @@
     "rating": 4.7,
     "sort_order": 4,
     "is_hot": false,
-    "is_featured": false
+    "is_featured": false,
+    "is_pinned": false
   },
   {
     "activity_id": "activity_005",
@@ -98,7 +123,8 @@
     "rating": 0,
     "sort_order": 5,
     "is_hot": false,
-    "is_featured": false
+    "is_featured": false,
+    "is_pinned": false
   },
   {
     "activity_id": "activity_006",
@@ -118,7 +144,113 @@
     "rating": 0,
     "sort_order": 6,
     "is_hot": false,
-    "is_featured": false
+    "is_featured": false,
+    "is_pinned": false
+  },
+  {
+    "activity_id": "activity_008",
+    "name": "古代建筑探秘",
+    "desc": "探索中国古代建筑的智慧与美学，了解不同朝代的建筑风格和特点。通过模型展示和虚拟现实技术，体验古代建筑的魅力。",
+    "cover_img": "https://picsum.photos/seed/ancient-architecture/400/300.jpg",
+    "activity_map_img": "https://picsum.photos/seed/architecture-map/800/450.jpg",
+    "unlock_type": "free",
+    "status": "published",
+    "start_time": 1704067200,
+    "end_time": 1735689599,
+    "creator_id": "admin",
+    "tags": ["建筑艺术", "古代文明", "虚拟体验"],
+    "difficulty": "中等",
+    "duration": "80分钟",
+    "participants": 1456,
+    "rating": 4.5,
+    "sort_order": 7,
+    "is_hot": true,
+    "is_featured": false,
+    "is_pinned": false
+  },
+  {
+    "activity_id": "activity_009",
+    "name": "古代服饰文化",
+    "desc": "了解中国古代服饰的演变历程，感受不同朝代的服饰特色。通过实物展示和试穿体验，深入了解古代服饰的文化内涵和审美价值。",
+    "cover_img": "https://picsum.photos/seed/ancient-costume/400/300.jpg",
+    "activity_map_img": "https://picsum.photos/seed/costume-map/800/450.jpg",
+    "unlock_type": "passcode",
+    "status": "published",
+    "start_time": 1704067200,
+    "end_time": 1735689599,
+    "creator_id": "admin",
+    "tags": ["服饰文化", "历史体验", "美学鉴赏"],
+    "difficulty": "简单",
+    "duration": "55分钟",
+    "participants": 987,
+    "rating": 4.4,
+    "sort_order": 8,
+    "is_hot": false,
+    "is_featured": false,
+    "is_pinned": false
+  },
+  {
+    "activity_id": "activity_010",
+    "name": "古代音乐欣赏",
+    "desc": "聆听古代音乐的美妙旋律，了解中国传统音乐的发展历程。通过古琴、古筝等传统乐器的演奏体验，感受古代音乐的艺术魅力。",
+    "cover_img": "https://picsum.photos/seed/ancient-music/400/300.jpg",
+    "activity_map_img": "https://picsum.photos/seed/music-map/800/450.jpg",
+    "unlock_type": "free",
+    "status": "published",
+    "start_time": 1704067200,
+    "end_time": 1735689599,
+    "creator_id": "admin",
+    "tags": ["音乐艺术", "传统文化", "体验活动"],
+    "difficulty": "简单",
+    "duration": "40分钟",
+    "participants": 678,
+    "rating": 4.6,
+    "sort_order": 9,
+    "is_hot": false,
+    "is_featured": true,
+    "is_pinned": false
+  },
+  {
+    "activity_id": "activity_011",
+    "name": "古代科技发明",
+    "desc": "探索中国古代的科技发明创造，了解四大发明等重大科技成就。通过互动实验和模型展示，体验古代科技的魅力和智慧。",
+    "cover_img": "https://picsum.photos/seed/ancient-technology/400/300.jpg",
+    "activity_map_img": "https://picsum.photos/seed/technology-map/800/450.jpg",
+    "unlock_type": "free",
+    "status": "published",
+    "start_time": 1704067200,
+    "end_time": 1735689599,
+    "creator_id": "admin",
+    "tags": ["科技发明", "互动实验", "古代智慧"],
+    "difficulty": "中等",
+    "duration": "70分钟",
+    "participants": 1123,
+    "rating": 4.7,
+    "sort_order": 10,
+    "is_hot": true,
+    "is_featured": false,
+    "is_pinned": false
+  },
+  {
+    "activity_id": "activity_012",
+    "name": "古代饮食文化",
+    "desc": "了解中国古代饮食文化的丰富内涵，探索不同朝代的饮食特色和烹饪技艺。通过实物展示和品尝体验，感受古代饮食文化的魅力。",
+    "cover_img": "https://picsum.photos/seed/ancient-food/400/300.jpg",
+    "activity_map_img": "https://picsum.photos/seed/food-map/800/450.jpg",
+    "unlock_type": "passcode",
+    "status": "upcoming",
+    "start_time": 1735689600,
+    "end_time": 1767225599,
+    "creator_id": "admin",
+    "tags": ["饮食文化", "历史体验", "传统文化"],
+    "difficulty": "简单",
+    "duration": "60分钟",
+    "participants": 0,
+    "rating": 0,
+    "sort_order": 11,
+    "is_hot": false,
+    "is_featured": false,
+    "is_pinned": false
   }
 ]
   

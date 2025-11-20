@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { useToast, Button } from '@/components/ui';
 // @ts-ignore;
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Trophy, Target, CheckCircle, Share2, Heart, MessageCircle, Camera, HelpCircle, Navigation, RefreshCw, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Trophy, Target, CheckCircle, Share2, Heart, MessageCircle, Camera, HelpCircle, Navigation, RefreshCw, AlertTriangle, Wifi, WifiOff, Flame, Crown, Pin } from 'lucide-react';
 
 import { TabBar } from '@/components/TabBar';
 export default function ActivityDetailPage(props) {
@@ -74,7 +74,7 @@ export default function ActivityDetailPage(props) {
         setTimeout(() => reject(new Error('请求超时，请稍后重试')), 10000);
       });
 
-      // 并行获取数据
+      // 并行获取数据 - 调用真实的wywh5_activity和wywh5_task数据模型
       const [activityResult, taskResult, userActivityResult] = await Promise.allSettled([Promise.race([timeoutPromise, $w.cloud.callFunction({
         name: 'callDataSource',
         data: {
@@ -137,6 +137,13 @@ export default function ActivityDetailPage(props) {
           description: "活动数据已更新"
         });
       }
+      // 检查是否是玉架山考古博物馆活动
+      if (activityResult.status === 'fulfilled' && activityResult.value.data && activityResult.value.data.name.includes('玉架山')) {
+        toast({
+          title: "特色活动",
+          description: "玉架山考古博物馆探索活动"
+        });
+      }
     } catch (error) {
       console.error('加载活动详情失败:', error);
       setError(error.message);
@@ -160,54 +167,9 @@ export default function ActivityDetailPage(props) {
           variant: "destructive"
         });
       }
-
-      // 使用模拟数据作为降级方案
-      setActivity({
-        activity_id: activityId,
-        name: '青铜器探秘之旅',
-        desc: '深入了解中国古代青铜器的历史文化和制作工艺，通过互动任务探索博物馆的珍贵藏品。本次活动将带您穿越时空，感受青铜文明的魅力。',
-        cover_img: 'https://picsum.photos/seed/bronze-detail/400/300.jpg',
-        activity_map_img: 'https://picsum.photos/seed/museum-map/800/600.jpg',
-        difficulty: 'medium',
-        duration: '90分钟',
-        participants: 156,
-        rating: 4.8,
-        tags: ['历史', '文化', '青铜器'],
-        status: 'active',
-        created_time: '2024-01-10T08:00:00Z',
-        organizer: '博物馆教育部',
-        max_participants: 200,
-        requirements: ['对历史文化感兴趣', '具备基本移动设备操作能力'],
-        rewards: ['完成证书', '积分奖励', '专属徽章']
-      });
-      setTasks([{
-        task_id: 'task-001',
-        activity_id: activityId,
-        task_name: '寻找镇馆之宝',
-        task_desc: '找到并拍摄博物馆的镇馆之宝 - 四羊方尊',
-        task_type: 'photo',
-        points: 150,
-        location_name: '中央大厅',
-        target_description: '四羊方尊是中国商代晚期青铜礼器',
-        task_order: 1,
-        is_required: true,
-        status: 'active'
-      }, {
-        task_id: 'task-002',
-        activity_id: activityId,
-        task_name: '青铜器知识问答',
-        task_desc: '测试你对青铜器历史和文化的了解',
-        task_type: 'quiz',
-        points: 100,
-        time_limit: 300,
-        task_order: 2,
-        is_required: true,
-        status: 'active'
-      }]);
-      toast({
-        title: "使用离线数据",
-        description: "当前显示的是示例数据"
-      });
+      // 不再使用模拟数据，直接显示错误状态
+      setActivity(null);
+      setTasks([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -484,126 +446,124 @@ export default function ActivityDetailPage(props) {
           </div>
         </div>}
 
+      {/* 活动状态标识 */}
+      {activity && <div className="px-4 py-4">
+          <div className="flex space-x-2">
+            {activity.is_pinned && <div className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                <Pin className="w-4 h-4 mr-1" />
+                置顶活动
+              </div>}
+            {activity.is_featured && <div className="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                <Crown className="w-4 h-4 mr-1" />
+                精选活动
+              </div>}
+            {activity.is_hot && <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                <Flame className="w-4 h-4 mr-1" />
+                热门活动
+              </div>}
+          </div>
+        </div>}
+
       <div className="px-4 py-6">
         {/* 活动基本信息 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">{activity?.name}</h1>
-              <div className="flex items-center space-x-3 mb-3">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(activity?.difficulty)}`}>
-                  {getDifficultyText(activity?.difficulty)}
-                </span>
-                <div className="flex items-center text-sm text-gray-500">
-                  <Star className="w-4 h-4 mr-1 text-yellow-500" />
-                  <span>{activity?.rating || 0}</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-500">
-                  <Users className="w-4 h-4 mr-1" />
-                  <span>{activity?.participants || 0}人参与</span>
+        {activity && <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">{activity.name}</h1>
+                <div className="flex items-center space-x-3 mb-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(activity.difficulty)}`}>
+                    {getDifficultyText(activity.difficulty)}
+                  </span>
+                  <div className="flex items-center text-sm text-gray-500">
+                    <Star className="w-4 h-4 mr-1 text-yellow-500" />
+                    <span>{activity.rating || 0}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-500">
+                    <Users className="w-4 h-4 mr-1" />
+                    <span>{activity.participants || 0}人参与</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <p className="text-gray-600 leading-relaxed mb-4">{activity?.desc}</p>
-          
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="flex items-center text-sm text-gray-600">
-              <Clock className="w-4 h-4 mr-2 text-blue-500" />
-              <span>时长: {activity?.duration || '60分钟'}</span>
+            
+            <p className="text-gray-600 leading-relaxed mb-4">{activity.desc}</p>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="flex items-center text-sm text-gray-600">
+                <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                <span>时长: {activity.duration || '60分钟'}</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <MapPin className="w-4 h-4 mr-2 text-red-500" />
+                <span>地点: 博物馆</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <Calendar className="w-4 h-4 mr-2 text-green-500" />
+                <span>状态: {activity.status === 'active' ? '活跃' : '未开始'}</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
+                <span>奖励: 积分+证书</span>
+              </div>
             </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <MapPin className="w-4 h-4 mr-2 text-red-500" />
-              <span>地点: 博物馆</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="w-4 h-4 mr-2 text-green-500" />
-              <span>状态: 活跃</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
-              <span>奖励: 积分+证书</span>
-            </div>
-          </div>
-          
-          {activity?.tags && activity.tags.length > 0 && <div className="flex flex-wrap gap-2">
-              {activity.tags.map((tag, index) => <span key={index} className="px-3 py-1 bg-blue-50 text-blue-600 text-sm rounded-full">
-                  {tag}
-                </span>)}
-            </div>}
-        </div>
-
-        {/* 活动要求 */}
-        {activity?.requirements && activity.requirements.length > 0 && <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">参与要求</h3>
-            <ul className="space-y-2">
-              {activity.requirements.map((requirement, index) => <li key={index} className="flex items-start">
-                  <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-600">{requirement}</span>
-                </li>)}
-            </ul>
+            
+            {activity.tags && activity.tags.length > 0 && <div className="flex flex-wrap gap-2">
+                {activity.tags.map((tag, index) => <span key={index} className="px-3 py-1 bg-blue-50 text-blue-600 text-sm rounded-full">
+                    {tag}
+                  </span>)}
+              </div>}
           </div>}
 
         {/* 任务列表 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">活动任务</h3>
-          <div className="space-y-3">
-            {tasks.map((task, index) => <div key={task.task_id || index} className="border border-gray-200 rounded-xl p-4">
-                <div className="flex items-start space-x-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getTaskTypeColor(task.task_type)}`}>
-                    {getTaskIcon(task.task_type)}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-800 mb-1">{task.task_name}</h4>
-                    <p className="text-sm text-gray-600 mb-2">{task.task_desc}</p>
-                    <div className="flex items-center space-x-3 text-xs text-gray-500">
-                      <span className={`px-2 py-1 rounded ${getTaskTypeColor(task.task_type)}`}>
-                        {getTaskTypeText(task.task_type)}
-                      </span>
-                      <span className="flex items-center">
-                        <Trophy className="w-3 h-3 mr-1 text-yellow-500" />
-                        {task.points}分
-                      </span>
-                      {task.is_required && <span className="px-2 py-1 bg-red-100 text-red-600 rounded">
-                          必做
-                        </span>}
+        {tasks.length > 0 && <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">活动任务</h3>
+            <div className="space-y-3">
+              {tasks.map((task, index) => <div key={task.task_id || index} className="border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getTaskTypeColor(task.task_type)}`}>
+                      {getTaskIcon(task.task_type)}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-800 mb-1">{task.task_name}</h4>
+                      <p className="text-sm text-gray-600 mb-2">{task.task_desc}</p>
+                      <div className="flex items-center space-x-3 text-xs text-gray-500">
+                        <span className={`px-2 py-1 rounded ${getTaskTypeColor(task.task_type)}`}>
+                          {getTaskTypeText(task.task_type)}
+                        </span>
+                        <span className="flex items-center">
+                          <Trophy className="w-3 h-3 mr-1 text-yellow-500" />
+                          {task.points}分
+                        </span>
+                        {task.is_required && <span className="px-2 py-1 bg-red-100 text-red-600 rounded">
+                            必做
+                          </span>}
+                        {task.time_limit && <span className="flex items-center">
+                            <Clock className="w-3 h-3 mr-1" />
+                            {Math.floor(task.time_limit / 60)}分钟
+                          </span>}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>)}
-          </div>
-        </div>
-
-        {/* 活动奖励 */}
-        {activity?.rewards && activity.rewards.length > 0 && <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">活动奖励</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {activity.rewards.map((reward, index) => <div key={index} className="text-center">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <Trophy className="w-6 h-6 text-yellow-600" />
-                  </div>
-                  <p className="text-sm text-gray-600">{reward}</p>
                 </div>)}
             </div>
           </div>}
 
         {/* 操作按钮 */}
-        <div className="space-y-3">
-          {!userActivityRecord ? <Button onClick={handleRegister} disabled={registering} className="w-full bg-blue-600 hover:bg-blue-700">
-              {registering ? '报名中...' : '立即报名'}
-            </Button> : userActivityRecord.status === 'registered' ? <Button onClick={handleStartActivity} className="w-full bg-green-600 hover:bg-green-700">
-              开始活动
-            </Button> : userActivityRecord.status === 'in_progress' ? <Button onClick={handleStartActivity} className="w-full bg-blue-600 hover:bg-blue-700">
-              继续活动
-            </Button> : <div className="text-center py-4">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
-              <p className="text-gray-600 font-medium">活动已完成</p>
-              <p className="text-sm text-gray-500">恭喜您完成了所有任务</p>
-            </div>}
-        </div>
+        {activity && <div className="space-y-3">
+            {!userActivityRecord ? <Button onClick={handleRegister} disabled={registering} className="w-full bg-blue-600 hover:bg-blue-700">
+                {registering ? '报名中...' : '立即报名'}
+              </Button> : userActivityRecord.status === 'registered' ? <Button onClick={handleStartActivity} className="w-full bg-green-600 hover:bg-green-700">
+                开始活动
+              </Button> : userActivityRecord.status === 'in_progress' ? <Button onClick={handleStartActivity} className="w-full bg-blue-600 hover:bg-blue-700">
+                继续活动
+              </Button> : <div className="text-center py-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+                <p className="text-gray-600 font-medium">活动已完成</p>
+                <p className="text-sm text-gray-500">恭喜您完成了所有任务</p>
+              </div>}
+          </div>}
       </div>
 
       {/* 底部导航栏 */}
