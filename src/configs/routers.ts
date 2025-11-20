@@ -8,6 +8,9 @@ import ACTIVITY_MAP from '../pages/activity-map.jsx';
 import QUIZ_TASK from '../pages/quiz-task.jsx';
 import PHOTO_TASK from '../pages/photo-task.jsx';
 import EDIT_PROFILE from '../pages/edit-profile.jsx';
+import LOCATION_TASK from '../pages/location-task.jsx';
+import ACHIEVEMENTS from '../pages/achievements.jsx';
+import LEADERBOARD from '../pages/leaderboard.jsx';
 export const routers = [{
   id: "home",
   component: HOME
@@ -38,4 +41,13 @@ export const routers = [{
 }, {
   id: "edit-profile",
   component: EDIT_PROFILE
+}, {
+  id: "location-task",
+  component: LOCATION_TASK
+}, {
+  id: "achievements",
+  component: ACHIEVEMENTS
+}, {
+  id: "leaderboard",
+  component: LEADERBOARD
 }]
